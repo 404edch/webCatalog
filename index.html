@@ -1205,7 +1205,7 @@ function buildAdmin(state) {
       <div class="form-group"><label class="form-label">Endereço / Localização</label>
         <input class="form-input" id="cfg-address"  value="${escAttr(config.contact.address  || "")}" placeholder="Cidade, Estado"/></div>
       <div class="form-group"><label class="form-label">${T("hero_title_label")}</label>
-        <input class="form-input" id="cfg-herotitle" value="${escAttr(config.hero_title || config.site_name || "")}"/></div>
+        <input class="form-input" id="cfg-herotitle" value="${escAttr(config.hero_title || "")}"/></div>
       <div class="form-group"><label class="form-label">${T("subtitle_label")}</label>
         <input class="form-input" id="cfg-subtitle" value="${escAttr(config.hero_subtitle    || "")}"/></div>
       <div class="form-group"><label class="form-label">Nome do Site</label>
@@ -1751,29 +1751,34 @@ const Settings = {
   async saveConfig() {
     App.setState({ saving: true });
     try {
-      const contact = {
-        email:    document.getElementById("cfg-email")?.value    || "",
-        whatsapp: document.getElementById("cfg-wa")?.value       || "",
-        address:  document.getElementById("cfg-address")?.value  || "",
+      /* Read every field value directly from DOM — no conditional fallbacks */
+      const get = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : null;
       };
-      /* Read all fields — use current value as fallback if field missing */
-      const newSiteName    = document.getElementById("cfg-sitename")?.value.trim();
-      const newSubtitle    = document.getElementById("cfg-subtitle")?.value.trim();
-      const newHeroTitle   = document.getElementById("cfg-herotitle")?.value.trim();
-      const update = {
-        site_name:     newSiteName    || App.state.config.site_name,
-        hero_subtitle: newSubtitle    || App.state.config.hero_subtitle,
-        hero_title:    newHeroTitle   || App.state.config.hero_title || "",
-        contact,
-      };
+
+      const email     = get("cfg-email")     ?? "";
+      const whatsapp  = get("cfg-wa")        ?? "";
+      const address   = get("cfg-address")   ?? "";
+      const siteName  = get("cfg-sitename");
+      const subtitle  = get("cfg-subtitle");
+      const heroTitle = get("cfg-herotitle");
+
+      /* Build update object — only include fields whose inputs exist in DOM */
+      const update = { contact: { email, whatsapp, address } };
+      if (siteName  !== null) update.site_name     = siteName;
+      if (subtitle  !== null) update.hero_subtitle = subtitle;
+      if (heroTitle !== null) update.hero_title    = heroTitle;
+
       await Storage.saveConfig(update);
-      /* Update local state so UI reflects changes immediately without reload */
-      App.state.config.site_name     = update.site_name;
-      App.state.config.hero_subtitle = update.hero_subtitle;
-      App.state.config.hero_title    = update.hero_title;
-      App.state.config.contact       = update.contact;
-      /* Update page title */
-      document.title = update.site_name;
+
+      /* Mirror into local state immediately so UI updates without reload */
+      if (siteName  !== null) App.state.config.site_name     = siteName;
+      if (subtitle  !== null) App.state.config.hero_subtitle = subtitle;
+      if (heroTitle !== null) App.state.config.hero_title    = heroTitle;
+      App.state.config.contact = { email, whatsapp, address };
+      if (siteName) document.title = siteName;
+
       App.notify(T("settings_saved"));
       App.setState({ saving: false });
     } catch (e) {
