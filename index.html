@@ -1170,7 +1170,7 @@ function buildDetail(state) {
           : `<div class="detail-price" style="color:var(--muted);font-size:1rem;font-style:italic">${T("reach_out")}</div>`}
         ${item.description ? `<p class="detail-desc">${escHtml(item.description)}</p>` : ""}
         ${specsHtml}
-        <button class="cta-email" onclick="App.setState({modal:'contact'})">${T("contact_btn")}</button>
+        
         ${waCTA}
         ${adminTools}
       </div>
@@ -1275,7 +1275,7 @@ function buildModals(state) {
     case "login":    return buildLoginModal(state);
     case "addItem":  return buildAddItemModal(state);
     case "settings": return buildSettingsModal(state);
-    case "contact":  return buildContactModal(state);
+    /* contact modal removed — email is footer-only, WhatsApp handles item inquiries */
     case "addPhoto": return buildAddPhotoModal();
     default:         return "";
   }
@@ -1307,39 +1307,49 @@ function buildLoginModal(state) {
 }
 
 function buildAddItemModal(state) {
-  const item = state.editingItemId
-    ? state.items.find(i => i.id === state.editingItemId)
-    : null;
-  const isEditar = !!item;
+  const item       = state.editingItemId ? state.items.find(i => i.id === state.editingItemId) : null;
+  const isEditar   = !!item;
+  const previewSrc = state._pendingFrontImg || item?.front_image_url || "";
+
+  /* Build specs rows — default one empty row for new items */
   const specsHtml = (item?.specs?.length ? item.specs : [{ label:"", value:"" }])
     .map((s, i) => buildSpecRow(s.label, s.value, i)).join("");
 
-  /* Preview: show pending upload preview, or existing image, or nothing */
-  const previewSrc = state._pendingFrontImg || item?.front_image_url || "";
+  /* Use JS vars for all conditional values — keeps template literal clean */
+  const modalTitle     = isEditar ? T("edit_modal_title") : T("add_modal_title");
+  const itemName       = escAttr(item?.name        || "");
+  const itemEmoji      = escAttr(item?.emoji       || "📦");
+  const itemPrice      = escAttr(item?.price       || "");
+  const itemDesc       = escHtml(item?.description || "");
+  const priceChecked   = item?.price_required ? "checked" : "";
+  const priceDisplay   = item?.price_required ? "" : "display:none";
+  const uploadLabel    = previewSrc ? T("click_replace") : T("click_upload");
+  const saveBtnLabel   = isEditar ? T("save_changes") : T("add_item_btn");
+  const previewImg     = previewSrc
+    ? `<img src="${escAttr(previewSrc)}" class="img-preview-inline" id="front-preview"/>`
+    : `<img id="front-preview" class="img-preview-inline" style="display:none"/>`;
 
   return `
   <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
     <div class="modal" id="the-modal">
-      <div class="modal-title">${isEditar ? "Editar Item" : "Adicionar Novo Item"}</div>
+      <div class="modal-title">${modalTitle}</div>
 
       <div class="form-group">
-        <label class="form-label">Nome *</label>
-        <input class="form-input" id="f-name" value="${escAttr(item?.name || "")}" placeholder="ex: Golden Retriever – Max"/>
+        <label class="form-label">${T("name_label")}</label>
+        <input class="form-input" id="f-name" value="${itemName}" placeholder="${T("name_placeholder")}"/>
       </div>
 
       <div class="form-group">
         <label class="form-label">${T("emoji_label")}</label>
-        <input class="form-input" id="f-emoji" value="${escAttr(item?.emoji || "📦")}" maxlength="4" style="width:90px"/>
+        <input class="form-input" id="f-emoji" value="${itemEmoji}" maxlength="4" style="width:90px"/>
       </div>
 
       <div class="form-group">
         <label class="form-label">${T("front_photo")}</label>
-        ${previewSrc
-          ? `<img src="${escAttr(previewSrc)}" class="img-preview-inline" id="front-preview"/>`
-          : `<img id="front-preview" class="img-preview-inline" style="display:none"/>`}
+        ${previewImg}
         <label class="upload-zone" for="f-frontimg">
           <span class="upload-zone-icon">📷</span>
-          <span>${previewSrc ? "Clique para substituir" : "Clique para enviar"}</span>
+          <span>${uploadLabel}</span>
           <input type="file" id="f-frontimg" accept="image/*" style="display:none"
             onchange="Items.previewFront(event)"/>
         </label>
@@ -1347,32 +1357,33 @@ function buildAddItemModal(state) {
 
       <div class="form-group">
         <label class="form-checkbox-row">
-          <input type="checkbox" id="f-pricetoggle"
-            ${item?.price_required ? "checked" : ""}
+          <input type="checkbox" id="f-pricetoggle" ${priceChecked}
             onchange="Items.togglePriceField(this.checked)"/>
           ${T("show_price")}
         </label>
       </div>
-      <div class="form-group" id="price-field" style="${item?.price_required ? "" : "display:none"}">
-        <label class="form-label">Price</label>
-        <input class="form-input" id="f-price" value="${escAttr(item?.price || "")}" placeholder="ex: R$ 50"/>
+
+      <div class="form-group" id="price-field" style="${priceDisplay}">
+        <label class="form-label">${T("price_label")}</label>
+        <input class="form-input" id="f-price" value="${itemPrice}" placeholder="${T("price_placeholder")}"/>
       </div>
 
       <div class="form-group">
         <label class="form-label">${T("desc_label")}</label>
-        <textarea class="form-input" id="f-desc" rows="3" style="resize:vertical">${escHtml(item?.description || "")}</textarea>
+        <textarea class="form-input" id="f-desc" rows="3" style="resize:vertical">${itemDesc}</textarea>
       </div>
 
       <div class="form-group">
         <label class="form-label">${T("specs_label")}</label>
         <div id="specs-container">${specsHtml}</div>
-        <button class="btn btn-ghost" onclick="Items.addSpecRow()" style="font-size:.83rem;padding:5px 12px;margin-top:.4rem">${T("add_row")}</button>
+        <button class="btn btn-ghost" onclick="Items.addSpecRow()"
+          style="font-size:.83rem;padding:5px 12px;margin-top:.4rem">${T("add_row")}</button>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-outline" onclick="Items.cancelModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="Items.saveItem()" ${state.saving?"disabled":""}>
-          ${state.saving ? `<span class="spinner"></span>` : (isEditar ? "💾 Salvar Alterações" : "Adicionar Item")}
+        <button class="btn-outline" onclick="Items.cancelModal()">${T("cancel")}</button>
+        <button class="btn btn-primary" id="btn-save-item" onclick="Items.saveItem()">
+          ${saveBtnLabel}
         </button>
       </div>
     </div>
@@ -1437,52 +1448,6 @@ function buildSettingsModal(state) {
   </div>`;
 }
 
-function buildContactModal(state) {
-  const c    = state.config.contact;
-  const item = state.items.find(i => i.id === state.selectedItemId);
-  const subj = item ? encodeURIComponent(`${T("inquiry")}${item.name}`) : "";
-  const waMsg= item ? encodeURIComponent(`Olá! Tenho interesse em: ${item.name}`) : "";
-
-  /* Email shown only in footer for custom orders — not in the contact popup */
-  const emailRow = "";
-
-  const waRow = c.whatsapp ? `
-    <div class="contact-option">
-      <span class="contact-option-icon">📱</span>
-      <div>
-        <div class="contact-option-label">WhatsApp</div>
-        <a class="contact-option-value"
-          href="https://wa.me/${c.whatsapp.replace(/\D/g,"")}?text=${waMsg}"
-          target="_blank" rel="noopener">${escHtml(c.whatsapp)}</a>
-      </div>
-    </div>` : "";
-
-  const addrRow = c.address ? `
-    <div class="contact-option">
-      <span class="contact-option-icon">📍</span>
-      <div>
-        <div class="contact-option-label">Location</div>
-        <div class="contact-option-value" style="color:var(--muted)">${escHtml(c.address)}</div>
-      </div>
-    </div>` : "";
-
-  return `
-  <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
-    <div class="modal" id="the-modal">
-      <div class="modal-title">${T("contact_title")}</div>
-      ${item ? `<p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">${T("about_prefix")}<strong>${escHtml(item.name)}</strong></p>` : ""}
-      <div style="background:var(--primary-light);border-radius:var(--radius-sm);padding:.5rem 1rem">
-        ${emailRow}${waRow}${addrRow}
-        ${!c.email && !c.whatsapp
-          ? `<p style="color:var(--muted);font-size:.9rem;padding:.5rem 0">${T("no_contact")}</p>`
-          : ""}
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" onclick="Modals.close()">${T("close")}</button>
-      </div>
-    </div>
-  </div>`;
-}
 
 function buildAddPhotoModal() {
   return `
@@ -1520,7 +1485,12 @@ function buildFooter(state) {
       </div>
       <div>
         <div class="footer-col-title">${T("contact_col")}</div>
-        ${c.email    ? `<a class="footer-link" href="mailto:${escAttr(c.email)}">✉ ${escHtml(c.email)}</a>` : ""}
+        ${c.email ? `
+        <span class="footer-link" style="cursor:default;color:#6b7280;font-size:.8rem;font-style:italic;margin-bottom:.1rem">
+          ${LANG === "pt" ? "Para pedidos personalizados:" : "For custom orders:"}
+        </span>
+        <a class="footer-link" href="mailto:${escAttr(c.email)}">✉ ${escHtml(c.email)}</a>
+      ` : ""}
         ${c.whatsapp ? `<a class="footer-link" href="https://wa.me/${c.whatsapp.replace(/\D/g,"")}" target="_blank" rel="noopener">📱 ${escHtml(c.whatsapp)}</a>` : ""}
         ${c.address  ? `<span class="footer-link" style="cursor:default">📍 ${escHtml(c.address)}</span>` : ""}
       </div>
@@ -1661,18 +1631,20 @@ const Items = {
     const name = document.getElementById("f-name")?.value?.trim();
     if (!name) { App.notify(T("name_required"), "error"); return; }
 
-    App.setState({ saving: true });
+    /* Disable save button during operation */
+    const btn = document.getElementById("btn-save-item");
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>'; }
 
     try {
-      const emoji          = document.getElementById("f-emoji")?.value          || "📦";
-      const price_required = document.getElementById("f-pricetoggle")?.checked  || false;
-      const price          = document.getElementById("f-price")?.value?.trim()  || "";
-      const description    = document.getElementById("f-desc")?.value?.trim()   || "";
+      const emoji          = document.getElementById("f-emoji")?.value?.trim()     || "📦";
+      const price_required = document.getElementById("f-pricetoggle")?.checked     || false;
+      const price          = document.getElementById("f-price")?.value?.trim()     || "";
+      const description    = document.getElementById("f-desc")?.value?.trim()      || "";
       const specs          = this._collectSpecs();
 
-      /* Upload front image only if a new file was chosen */
+      /* Upload front image only if a new file was selected */
       let front_image_url = App.state.editingItemId
-        ? App.state.items.find(i => i.id === App.state.editingItemId)?.front_image_url || ""
+        ? (App.state.items.find(i => i.id === App.state.editingItemId)?.front_image_url || "")
         : "";
 
       if (App.state._pendingFrontFile) {
@@ -1683,7 +1655,6 @@ const Items = {
         await Storage.updateItem(App.state.editingItemId, {
           name, emoji, price_required, price, description, specs, front_image_url
         });
-        /* Update local state immediately */
         const idx = App.state.items.findIndex(i => i.id === App.state.editingItemId);
         if (idx > -1) Object.assign(App.state.items[idx], {
           name, emoji, price_required, price, description, specs, front_image_url
@@ -1703,6 +1674,7 @@ const Items = {
 
     } catch (e) {
       App.notify(T("save_error") + e.message, "error");
+      if (btn) { btn.disabled = false; btn.textContent = T(isEditar ? "save_changes" : "add_item_btn"); }
       App.setState({ saving: false });
     }
   },
