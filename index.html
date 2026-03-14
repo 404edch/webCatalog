@@ -1183,64 +1183,93 @@ function buildDetail(state) {
    ============================================================ */
 function buildAdmin(state) {
   const { config, items } = state;
+
+  const itemRows = items.length === 0
+    ? `<p style="color:var(--muted);font-size:.9rem">${T("no_items_listed")}</p>`
+    : items.map(item => `
+      <div class="admin-item-row">
+        ${item.front_image_url
+          ? `<img src="${escAttr(item.front_image_url)}" class="admin-item-thumb" alt=""/>`
+          : `<div class="admin-item-thumb">${item.emoji || "📦"}</div>`}
+        <div class="admin-item-info">
+          <div class="admin-item-name">${escHtml(item.name)}</div>
+          <div class="admin-item-meta">${item.price_required ? escHtml(item.price || "") : T("no_price")}</div>
+        </div>
+        <div class="admin-item-btns">
+          <button class="btn btn-ghost" onclick="Nav.openItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">${T("view_btn")}</button>
+          <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">${T("edit_btn_sm")}</button>
+          <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">${T("delete_btn_sm")}</button>
+        </div>
+      </div>`).join("");
+
   return `
   <div class="admin-wrap fade-in">
-    <h2 class="admin-heading">Painel Admin</h2>
-    <p class="admin-subhead">Gerencie itens, contato e aparência</p>
+    <h2 class="admin-heading">${T("admin_panel")}</h2>
+    <p class="admin-subhead">${T("admin_subhead")}</p>
 
     <div class="panel-block">
-      <div class="panel-block-title">Ações Rápidas</div>
+      <div class="panel-block-title">${T("quick_actions")}</div>
       <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="Items.openAddModal()">+ Adicionar Item</button>
-        <button class="btn btn-ghost"   onclick="Settings.openAppearance()">🎨 Aparência</button>
+        <button class="btn btn-primary" onclick="Items.openAddModal()">${T("add_item_btn")}</button>
+        <button class="btn btn-ghost"   onclick="Settings.openAppearance()">${T("appearance_btn")}</button>
       </div>
     </div>
 
     <div class="panel-block">
-      <div class="panel-block-title">Contato & Texto do Site</div>
-      <div class="form-group"><label class="form-label">Email</label>
-        <input class="form-input" id="cfg-email"    value="${escAttr(config.contact.email    || "")}" placeholder="seu@email.com"/></div>
-      <div class="form-group"><label class="form-label">WhatsApp (com código do país)</label>
-        <input class="form-input" id="cfg-wa"       value="${escAttr(config.contact.whatsapp || "")}" placeholder="+5541999999999"/></div>
-      <div class="form-group"><label class="form-label">Endereço / Localização</label>
-        <input class="form-input" id="cfg-address"  value="${escAttr(config.contact.address  || "")}" placeholder="Cidade, Estado"/></div>
-      <div class="form-group"><label class="form-label">${T("hero_title_label")}</label>
-        <input class="form-input" id="cfg-herotitle" value="${escAttr(config.hero_title || "")}"/></div>
-      <div class="form-group"><label class="form-label">${T("subtitle_label")}</label>
-        <input class="form-input" id="cfg-subtitle" value="${escAttr(config.hero_subtitle    || "")}"/></div>
-      <div class="form-group"><label class="form-label">Nome do Site</label>
-        <input class="form-input" id="cfg-sitename" value="${escAttr(config.site_name        || "")}"/></div>
-      <button class="btn btn-primary ${state.saving ? "disabled" : ""}"
-        onclick="Settings.saveConfig()" ${state.saving ? "disabled" : ""}>
-        ${state.saving ? `<span class="spinner"></span>` : "Salvar Configurações"}
+      <div class="panel-block-title">${T("contact_section")}</div>
+
+      <div class="form-group">
+        <label class="form-label">${T("email_label")}</label>
+        <input class="form-input" id="cfg-email" type="email"
+          value="${escAttr(config.contact.email || "")}"
+          placeholder="${T("email_placeholder")}"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">${T("whatsapp_label")}</label>
+        <input class="form-input" id="cfg-wa" type="tel"
+          value="${escAttr(config.contact.whatsapp || "")}"
+          placeholder="+5541999999999"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">${T("address_label")}</label>
+        <input class="form-input" id="cfg-address"
+          value="${escAttr(config.contact.address || "")}"
+          placeholder="${T("address_label")}"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">${T("hero_title_label")}</label>
+        <input class="form-input" id="cfg-herotitle"
+          value="${escAttr(config.hero_title || "")}"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">${T("subtitle_label")}</label>
+        <input class="form-input" id="cfg-subtitle"
+          value="${escAttr(config.hero_subtitle || "")}"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">${T("sitename_label")}</label>
+        <input class="form-input" id="cfg-sitename"
+          value="${escAttr(config.site_name || "")}"/>
+      </div>
+
+      <button class="btn btn-primary" id="btn-save-config" onclick="Settings.saveConfig()">
+        ${T("save_settings")}
       </button>
     </div>
 
     <div class="panel-block">
-      <div class="panel-block-title">Todos os Itens (${items.length})</div>
-      ${items.length === 0 ? `<p style="color:var(--muted);font-size:.9rem">No items yet.</p>` : ""}
-      ${items.map(item => `
-        <div class="admin-item-row">
-          ${item.front_image_url
-            ? `<img src="${escAttr(item.front_image_url)}" class="admin-item-thumb" alt=""/>`
-            : `<div class="admin-item-thumb">${item.emoji || "📦"}</div>`}
-          <div class="admin-item-info">
-            <div class="admin-item-name">${escHtml(item.name)}</div>
-            <div class="admin-item-meta">${item.price_required ? escHtml(item.price || "") : "Sem preço listado"}</div>
-          </div>
-          <div class="admin-item-btns">
-            <button class="btn btn-ghost" onclick="Nav.openItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Ver</button>
-            <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Editar</button>
-            <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Excluir</button>
-          </div>
-        </div>`).join("")}
+      <div class="panel-block-title">${T("all_items")} (${items.length})</div>
+      ${itemRows}
     </div>
   </div>`;
 }
 
-/* ============================================================
-   19. JS: BUILDERS — MODALS
-   ============================================================ */
+
 function buildModals(state) {
   switch (state.modal) {
     case "login":    return buildLoginModal(state);
@@ -1414,14 +1443,8 @@ function buildContactModal(state) {
   const subj = item ? encodeURIComponent(`${T("inquiry")}${item.name}`) : "";
   const waMsg= item ? encodeURIComponent(`Olá! Tenho interesse em: ${item.name}`) : "";
 
-  const emailRow = c.email ? `
-    <div class="contact-option">
-      <span class="contact-option-icon">✉</span>
-      <div>
-        <div class="contact-option-label">${T("email_field")}</div>
-        <a class="contact-option-value" href="mailto:${escAttr(c.email)}?subject=${subj}">${escHtml(c.email)}</a>
-      </div>
-    </div>` : "";
+  /* Email shown only in footer for custom orders — not in the contact popup */
+  const emailRow = "";
 
   const waRow = c.whatsapp ? `
     <div class="contact-option">
@@ -1749,41 +1772,49 @@ const Settings = {
   },
 
   async saveConfig() {
-    App.setState({ saving: true });
+    /* Disable the button visually while saving */
+    const btn = document.getElementById("btn-save-config");
+    if (btn) { btn.disabled = true; btn.textContent = "…"; }
+
     try {
-      /* Read every field value directly from DOM — no conditional fallbacks */
-      const get = (id) => {
-        const el = document.getElementById(id);
-        return el ? el.value : null;
+      /* Read every field directly — getElementById returns null if not in DOM */
+      const emailEl      = document.getElementById("cfg-email");
+      const waEl         = document.getElementById("cfg-wa");
+      const addressEl    = document.getElementById("cfg-address");
+      const siteNameEl   = document.getElementById("cfg-sitename");
+      const subtitleEl   = document.getElementById("cfg-subtitle");
+      const heroTitleEl  = document.getElementById("cfg-herotitle");
+
+      /* Build the update payload — only include keys whose fields exist */
+      const payload = {};
+
+      /* Contact sub-object — always included, defaults to current if field missing */
+      payload.contact = {
+        email:    emailEl   ? emailEl.value   : App.state.config.contact.email,
+        whatsapp: waEl      ? waEl.value      : App.state.config.contact.whatsapp,
+        address:  addressEl ? addressEl.value : App.state.config.contact.address,
       };
 
-      const email     = get("cfg-email")     ?? "";
-      const whatsapp  = get("cfg-wa")        ?? "";
-      const address   = get("cfg-address")   ?? "";
-      const siteName  = get("cfg-sitename");
-      const subtitle  = get("cfg-subtitle");
-      const heroTitle = get("cfg-herotitle");
+      if (siteNameEl)  payload.site_name     = siteNameEl.value;
+      if (subtitleEl)  payload.hero_subtitle = subtitleEl.value;
+      if (heroTitleEl) payload.hero_title    = heroTitleEl.value;
 
-      /* Build update object — only include fields whose inputs exist in DOM */
-      const update = { contact: { email, whatsapp, address } };
-      if (siteName  !== null) update.site_name     = siteName;
-      if (subtitle  !== null) update.hero_subtitle = subtitle;
-      if (heroTitle !== null) update.hero_title    = heroTitle;
+      /* Persist to Supabase */
+      await Storage.saveConfig(payload);
 
-      await Storage.saveConfig(update);
+      /* Update local state so the UI reflects changes immediately */
+      App.state.config.contact = payload.contact;
+      if (payload.site_name     !== undefined) App.state.config.site_name     = payload.site_name;
+      if (payload.hero_subtitle !== undefined) App.state.config.hero_subtitle = payload.hero_subtitle;
+      if (payload.hero_title    !== undefined) App.state.config.hero_title    = payload.hero_title;
 
-      /* Mirror into local state immediately so UI updates without reload */
-      if (siteName  !== null) App.state.config.site_name     = siteName;
-      if (subtitle  !== null) App.state.config.hero_subtitle = subtitle;
-      if (heroTitle !== null) App.state.config.hero_title    = heroTitle;
-      App.state.config.contact = { email, whatsapp, address };
-      if (siteName) document.title = siteName;
+      if (payload.site_name) document.title = payload.site_name;
 
       App.notify(T("settings_saved"));
-      App.setState({ saving: false });
     } catch (e) {
       App.notify(T("save_error") + e.message, "error");
-      App.setState({ saving: false });
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = T("save_settings"); }
     }
   },
 
