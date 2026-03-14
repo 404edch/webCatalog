@@ -1,2 +1,2 @@
 # webCatalog
-Need a simple website to list your products, without direct transactions? This highly customizable template is perfect for you, add your contact information,set your admin login and start selling
+Need a simple website to list your products without direct transactions? This highly customizable template is perfect for you, add your contact information, set your admin login and start selling. -Vibecoded test project, made for wide and free usage by independent workers.
