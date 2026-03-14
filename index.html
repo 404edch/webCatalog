@@ -161,19 +161,24 @@ nav {
    --grad-* variables that the theme engine sets dynamically.
    ============================================================ */
 .hero {
-  /* gradient derived from primary — updated by applyTheme() */
   background: linear-gradient(160deg, var(--grad-hero-a) 0%, var(--grad-hero-b) 100%);
-  padding: 4rem 1.5rem 3.5rem;
+  padding: 2rem 1.5rem 1.8rem;     /* smaller padding so section isn't huge */
   text-align: center;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 .hero-logo {
-  /* Only these two values changed — logo is now visibly bigger */
-  height: clamp(85px, 19vw, 185px);
-  max-width: 520px;
+  /* Logo now fills MOST of the hero height, but section stays reasonable size */
+  height: clamp(190px, 45vh, 460px);
+  max-height: 58vh;                /* hard cap so it never makes the whole page too tall */
   width: auto;
+  max-width: 90%;
   object-fit: contain;
-  margin: 0 auto 1rem;
+  margin: 0 auto 1.2rem;
+  flex-shrink: 0;
 }
 .hero-site-name {
   font-family: var(--font-heading);
