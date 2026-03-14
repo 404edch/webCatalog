@@ -162,7 +162,7 @@ nav {
    ============================================================ */
 .hero {
   background: linear-gradient(160deg, var(--grad-hero-a) 0%, var(--grad-hero-b) 100%);
-  padding: 2rem 1.5rem 1.8rem;     /* smaller padding so section isn't huge */
+  padding: 2rem 1.5rem 1.8rem;
   text-align: center;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -171,9 +171,8 @@ nav {
   justify-content: center;
 }
 .hero-logo {
-  /* Logo now fills MOST of the hero height, but section stays reasonable size */
-  height: clamp(190px, 45vh, 460px);
-  max-height: 58vh;                /* hard cap so it never makes the whole page too tall */
+  height: clamp(160px, 38vh, 460px);   /* desktop stays exactly the same */
+  max-height: 55vh;
   width: auto;
   max-width: 90%;
   object-fit: contain;
@@ -548,6 +547,16 @@ footer {
   border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin .8s linear infinite;
+}
+/* Mobile-only fix — hero no longer overly tall */
+@media (max-width: 768px) {
+  .hero {
+    padding: 1.6rem 1rem 1.4rem;   /* less vertical space on phones */
+  }
+  .hero-logo {
+    height: clamp(135px, 32vh, 260px);   /* much shorter on mobile */
+    max-height: 46vh;
+  }
 }
 
 @media (max-width: 768px) {
