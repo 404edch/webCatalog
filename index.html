@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Catalog</title>
+<!--
+  ============================================================
+  CATALOG TEMPLATE — Final Production Edition
+  ============================================================
+  STORAGE: Supabase (DB + images + auth)
+  HOST:    Vercel (or any static host)
+
+  SETUP BEFORE DEPLOYING:
+  1. Create a Supabase project at supabase.com
+  2. Run the SQL in the comment block at the bottom of this file
+  3. Create a Storage bucket called "catalog-images" (set to Public)
+  4. Invite yourself as admin via Authentication → Users → Invite
+  5. Replace SUPABASE_URL and SUPABASE_ANON_KEY below with your values
+
+  MODULE MAP (Ctrl+F to jump):
+   1. CSS: VARIABLES & RESET
+   2. CSS: NAV
+   3. CSS: HERO
+   4. CSS: CATALOG GRID
+   5. CSS: DETAIL PAGE
+   6. CSS: ADMIN PANEL
+   7. CSS: MODALS
+   8. CSS: FOOTER
+   9. CSS: UTILITIES & RESPONSIVE
+  10. JS:  SUPABASE CONFIG        ← put your credentials here
+  11. JS:  STORAGE MODULE         ← all DB/storage reads & writes
+  12. JS:  IMAGE UPLOAD MODULE    ← uploads to Supabase Storage
+  13. JS:  STATE & RENDER
+  14. JS:  THEME ENGINE           ← derives ALL colors from primary
+  15. JS:  BUILDERS — NAV/HERO
+  16. JS:  BUILDERS — HOME/CARDS
+  17. JS:  BUILDERS — DETAIL
+  18. JS:  BUILDERS — ADMIN
+  19. JS:  BUILDERS — MODALS
+  20. JS:  BUILDERS — FOOTER
+  21. JS:  ACTIONS — AUTH
+  22. JS:  ACTIONS — ITEMS
+  23. JS:  ACTIONS — SETTINGS
+  24. JS:  ACTIONS — NAV
+  25. JS:  ACTIONS — MODALS
+  26. JS:  HELPERS
+  27. JS:  INIT
+  ============================================================
+-->
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+<style>
+
+/* ============================================================
+   1. CSS: VARIABLES & RESET
+   All gradient and color variables are set at runtime by the
+   theme engine (section 14) — never hardcoded in CSS.
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Brand — overridden at runtime */
+  --primary:         #22c55e;
+  --primary-dark:    #16a34a;
+  --primary-light:   rgba(34,197,94,0.10);
+  --accent:          #15803d;
+
+  /* Gradients — ALL derived from --primary by theme engine */
+  --grad-hero-a:     rgba(34,197,94,0.13);
+  --grad-hero-b:     rgba(34,197,94,0.04);
+  --grad-card-a:     rgba(34,197,94,0.18);
+  --grad-card-b:     rgba(34,197,94,0.07);
+
+  /* Surface */
+  --bg:              #fafaf9;
+  --surface:         #ffffff;
+  --border:          #e5e7eb;
+
+  /* Text */
+  --text:            #111827;
+  --muted:           #6b7280;
+  --danger:          #ef4444;
+
+  /* Typography */
+  --font-body:       'DM Sans', sans-serif;
+  --font-heading:    'Cormorant Garamond', serif;
+
+  /* Shape */
+  --radius:          12px;
+  --radius-sm:       8px;
+  --shadow-card:     0 2px 12px rgba(0,0,0,0.07);
+  --shadow-modal:    0 20px 60px rgba(0,0,0,0.18);
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+img    { max-width: 100%; display: block; }
+button { cursor: pointer; border: none; font-family: inherit; }
+input, textarea, select { font-family: inherit; }
+a { text-decoration: none; color: inherit; }
+
+
+/* ============================================================
+   2. CSS: NAV
+   ============================================================ */
+nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 1.5rem;
+}
+.nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.nav-brand-logo { height: 36px; width: auto; object-fit: contain; }
+.nav-brand-text {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.nav-actions { display: flex; align-items: center; gap: 8px; }
+.btn-add-item {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  transition: transform .2s, background .2s;
+  flex-shrink: 0;
+}
+.btn-add-item:hover { background: var(--primary-dark); transform: scale(1.07); }
+
+
+/* ============================================================
+   3. CSS: HERO
+   Background gradient and card emoji tints all come from
+   --grad-* variables that the theme engine sets dynamically.
+   ============================================================ */
+.hero {
+  /* gradient derived from primary — updated by applyTheme() */
+  background: linear-gradient(160deg, var(--grad-hero-a) 0%, var(--grad-hero-b) 100%);
+  padding: 4rem 1.5rem 3.5rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.hero-logo {
+  height: clamp(60px, 12vw, 110px);
+  width: auto;
+  max-width: 360px;
+  object-fit: contain;
+  margin: 0 auto 1rem;
+}
+.hero-site-name {
+  font-family: var(--font-heading);
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.01em;
+  margin-bottom: .75rem;
+}
+.hero-subtitle {
+  font-size: 1.05rem;
+  color: var(--muted);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+
+/* ============================================================
+   4. CSS: CATALOG GRID
+   ============================================================ */
+.catalog-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+.section-heading {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+}
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.25rem;
+}
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+  box-shadow: var(--shadow-card);
+}
+.card:hover { transform: translateY(-4px); box-shadow: 0 10px 28px rgba(0,0,0,.11); }
+.card-image { width: 100%; height: 210px; object-fit: cover; background: #f3f4f6; }
+/* Emoji fallback — gradient derived from primary color */
+.card-emoji {
+  width: 100%; height: 210px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3.5rem;
+  background: linear-gradient(135deg, var(--grad-card-a), var(--grad-card-b));
+}
+.card-body    { padding: 1rem 1.1rem 1.1rem; }
+.card-name    { font-weight: 600; font-size: .98rem; margin-bottom: .3rem; }
+.card-price   { color: var(--accent); font-weight: 600; font-size: .93rem; }
+.card-no-price{ color: var(--muted); font-size: .88rem; font-style: italic; }
+
+.empty-state      { text-align: center; padding: 5rem 1.5rem; color: var(--muted); }
+.empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
+.empty-state h3   { font-size: 1.15rem; font-weight: 500; color: var(--text); margin-bottom: .4rem; }
+
+
+/* ============================================================
+   5. CSS: DETAIL PAGE
+   ============================================================ */
+.detail-wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--muted); font-size: .9rem;
+  margin-bottom: 1.75rem;
+  background: none; border: none;
+}
+.back-link:hover { color: var(--text); }
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+.gallery-main {
+  width: 100%; height: 340px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: #f3f4f6;
+}
+/* Empty gallery placeholder — gradient from primary */
+.gallery-main-empty {
+  width: 100%; height: 340px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 5rem;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--grad-card-a), var(--grad-card-b));
+}
+.gallery-thumbs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.thumb {
+  aspect-ratio: 1; width: 100%;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color .2s;
+}
+.thumb.active  { border-color: var(--primary); }
+.thumb-add-btn {
+  aspect-ratio: 1; width: 100%;
+  border-radius: var(--radius-sm);
+  border: 2px dashed var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 1.4rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: border-color .2s, color .2s;
+}
+.thumb-add-btn:hover { border-color: var(--primary); color: var(--primary); }
+.detail-name  { font-family: var(--font-heading); font-size: 2rem; font-weight: 700; line-height: 1.2; margin-bottom: .5rem; }
+.detail-price { font-size: 1.35rem; font-weight: 600; color: var(--accent); margin-bottom: .75rem; }
+.detail-desc  { color: var(--muted); font-size: .95rem; line-height: 1.7; margin-bottom: 1rem; }
+.specs-box    { background: #f9fafb; border-radius: 10px; padding: 1rem; border: 1px solid var(--border); margin-bottom: 1rem; }
+.spec-row     { display: flex; justify-content: space-between; padding: .4rem 0; border-bottom: 1px solid var(--border); font-size: .93rem; }
+.spec-row:last-child { border-bottom: none; }
+.spec-key     { color: var(--muted); }
+.spec-val     { font-weight: 500; }
+.cta-email {
+  width: 100%; padding: 13px 20px;
+  background: var(--primary); color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: .97rem; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .2s;
+  margin-bottom: .6rem;
+}
+.cta-email:hover { background: var(--primary-dark); }
+.cta-whatsapp {
+  width: 100%; padding: 13px 20px;
+  background: #25d366; color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: .97rem; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .2s;
+  margin-bottom: .6rem;
+}
+.cta-whatsapp:hover { background: #1ebe5d; }
+.admin-toolbar {
+  margin-top: 1.25rem;
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+.admin-toolbar-label { font-size: .82rem; font-weight: 600; color: #a16207; margin-bottom: .6rem; }
+.admin-toolbar-btns  { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+
+/* ============================================================
+   6. CSS: ADMIN PANEL
+   ============================================================ */
+.admin-wrap     { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+.admin-heading  { font-family: var(--font-heading); font-size: 1.9rem; font-weight: 600; margin-bottom: .3rem; }
+.admin-subhead  { color: var(--muted); font-size: .9rem; margin-bottom: 2rem; }
+.panel-block    { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.25rem; }
+.panel-block-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+.admin-item-row {
+  display: flex; align-items: center; gap: 1rem;
+  padding: .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: .5rem;
+}
+.admin-item-thumb {
+  width: 50px; height: 50px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: #f3f4f6;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  overflow: hidden;
+}
+.admin-item-info  { flex: 1; min-width: 0; }
+.admin-item-name  { font-weight: 500; font-size: .94rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-item-meta  { color: var(--muted); font-size: .83rem; margin-top: 2px; }
+.admin-item-btns  { display: flex; gap: 6px; flex-shrink: 0; }
+
+
+/* ============================================================
+   7. CSS: MODALS
+   ============================================================ */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.48);
+  z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  backdrop-filter: blur(3px);
+}
+.modal {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-modal);
+}
+.modal-title  { font-family: var(--font-heading); font-size: 1.45rem; font-weight: 600; margin-bottom: 1.25rem; }
+.modal-footer { display: flex; gap: .75rem; justify-content: flex-end; margin-top: 1.5rem; }
+.form-group   { margin-bottom: 1rem; }
+.form-label   { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .4rem; color: var(--text); }
+.form-hint    { font-size: .78rem; color: var(--muted); margin-top: .3rem; }
+.form-input {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: .94rem;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color .2s, box-shadow .2s;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+.form-row           { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.form-checkbox-row  { display: flex; align-items: center; gap: .5rem; font-size: .9rem; cursor: pointer; }
+.upload-zone {
+  width: 100%; min-height: 110px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: .4rem;
+  cursor: pointer;
+  color: var(--muted); font-size: .88rem;
+  transition: border-color .2s, background .2s;
+  background: var(--bg);
+}
+.upload-zone:hover  { border-color: var(--primary); background: var(--primary-light); }
+.upload-zone-icon   { font-size: 1.6rem; }
+.img-preview-inline {
+  width: 100%; height: 130px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  margin-bottom: .5rem;
+}
+.spec-entry   { display: flex; gap: .5rem; margin-bottom: .5rem; align-items: center; }
+.spec-remove  { background: none; border: none; color: var(--danger); font-size: 1.3rem; padding: 0 4px; cursor: pointer; line-height: 1; }
+.color-config-row   { display: flex; align-items: center; gap: 1rem; margin-bottom: .9rem; }
+.color-config-label { font-size: .9rem; color: var(--muted); min-width: 130px; }
+.color-config-picker{ width: 44px; height: 32px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; padding: 0 2px; }
+.contact-option       { display: flex; align-items: flex-start; gap: .85rem; padding: .6rem 0; border-bottom: 1px solid var(--border); }
+.contact-option:last-child { border-bottom: none; }
+.contact-option-icon  { font-size: 1.2rem; flex-shrink: 0; }
+.contact-option-label { font-size: .82rem; color: var(--muted); }
+.contact-option-value { font-size: .95rem; font-weight: 500; color: var(--accent); }
+
+
+/* ============================================================
+   8. CSS: FOOTER
+   ============================================================ */
+footer {
+  background: #111827; color: #fff;
+  padding: 3rem 1.5rem 1.5rem;
+}
+.footer-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 2.5rem; margin-bottom: 2rem;
+}
+.footer-brand-name { font-family: var(--font-heading); font-size: 1.3rem; margin-bottom: .5rem; }
+.footer-brand-desc { font-size: .88rem; color: #9ca3af; line-height: 1.7; }
+.footer-col-title  { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #d1d5db; margin-bottom: .85rem; }
+.footer-link       { display: block; color: #9ca3af; font-size: .88rem; margin-bottom: .4rem; cursor: pointer; }
+.footer-link:hover { color: #fff; }
+.footer-bottom     { max-width: 1200px; margin: 0 auto; padding-top: 1.25rem; border-top: 1px solid #1f2937; font-size: .78rem; color: #6b7280; text-align: center; }
+
+
+/* ============================================================
+   9. CSS: UTILITIES & RESPONSIVE
+   ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: .88rem; font-weight: 500;
+  transition: all .2s; cursor: pointer;
+}
+.btn-ghost   { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { background: #f3f4f6; color: var(--text); }
+.btn-primary { background: var(--primary); color: #fff; border: 1px solid var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-red     { background: none; color: var(--danger); border: 1px solid var(--danger); }
+.btn-red:hover { background: #fef2f2; }
+.btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 9px 18px; border-radius: var(--radius-sm); font-size: .9rem; font-family: inherit; cursor: pointer; }
+.btn-outline:hover { background: #f3f4f6; }
+
+/* Spinner for async operations */
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; top: 76px; right: 1rem;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: .9rem; font-weight: 500;
+  z-index: 999;
+  box-shadow: 0 4px 18px rgba(0,0,0,.18);
+  animation: fadeUp .3s ease;
+  pointer-events: none;
+}
+.toast-success { background: var(--primary); color: #fff; }
+.toast-error   { background: var(--danger); color: #fff; }
+.toast-info    { background: #3b82f6; color: #fff; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeUp .3s ease; }
+
+/* Loading screen */
+#loading-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1rem; z-index: 999;
+  transition: opacity .4s;
+}
+#loading-screen .load-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@media (max-width: 768px) {
+  .detail-grid   { grid-template-columns: 1fr; }
+  .footer-inner  { grid-template-columns: 1fr; }
+  .form-row      { grid-template-columns: 1fr; }
+  .catalog-grid  { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .card-image, .card-emoji { height: 165px; }
+}
+@media (max-width: 480px) {
+  nav { padding: 0 1rem; }
+  .catalog-grid { grid-template-columns: 1fr 1fr; }
+  .hero { padding: 2.5rem 1rem 2rem; }
+  .admin-item-btns { flex-direction: column; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- Loading screen shown while Supabase data loads -->
+<div id="loading-screen">
+  <div class="load-spinner"></div>
+  <span style="color:var(--muted);font-size:.9rem">Loading catalog…</span>
+</div>
+
+<div id="app" style="opacity:0;transition:opacity .4s"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   10. JS: SUPABASE CONFIG
+   Replace these two values with your project's credentials.
+   Find them in: Supabase Dashboard → Settings → API
+   ============================================================ */
+const SUPABASE_URL      = "https://YOUR_PROJECT.supabase.co";   // ← replace
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY_HERE";                 // ← replace
+
+/* ============================================================
+   11. JS: STORAGE MODULE
+   All database reads and writes are isolated here.
+   To swap to a different backend, only edit this section.
+   ============================================================ */
+const Storage = {
+  sb: null, // Supabase client, set during init
+
+  /* Initialize the Supabase client */
+  init(client) {
+    this.sb = client;
+  },
+
+  /* Load site config (single row) */
+  async loadConfig() {
+    const { data, error } = await this.sb
+      .from("site_config")
+      .select("*")
+      .eq("id", 1)
+      .single();
+    if (error) console.error("loadConfig:", error);
+    return data;
+  },
+
+  /* Save site config */
+  async saveConfig(config) {
+    const { error } = await this.sb
+      .from("site_config")
+      .upsert({ id: 1, ...config });
+    if (error) throw error;
+  },
+
+  /* Load all items ordered by creation date */
+  async loadItems() {
+    const { data, error } = await this.sb
+      .from("items")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if (error) console.error("loadItems:", error);
+    return data || [];
+  },
+
+  /* Insert a new item, returns the created row */
+  async createItem(item) {
+    const { data, error } = await this.sb
+      .from("items")
+      .insert(item)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  /* Update an existing item by id */
+  async updateItem(id, fields) {
+    const { error } = await this.sb
+      .from("items")
+      .update(fields)
+      .eq("id", id);
+    if (error) throw error;
+  },
+
+  /* Delete an item by id */
+  async deleteItem(id) {
+    const { error } = await this.sb
+      .from("items")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+  },
+};
+
+/* ============================================================
+   12. JS: IMAGE UPLOAD MODULE
+   Uploads a File to Supabase Storage and returns the public URL.
+
+   Bucket name: "catalog-images" (must be set to Public in Supabase)
+
+   If you prefer Cloudinary, replace uploadImage() with:
+     const form = new FormData();
+     form.append("file", file);
+     form.append("upload_preset", "YOUR_PRESET");
+     const res = await fetch(
+       "https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload",
+       { method: "POST", body: form }
+     );
+     return (await res.json()).secure_url;
+   ============================================================ */
+const ImageUpload = {
+  BUCKET: "catalog-images",
+
+  async uploadImage(file) {
+    const ext  = file.name.split(".").pop();
+    const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await Storage.sb.storage
+      .from(this.BUCKET)
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    if (error) throw error;
+    const { data } = Storage.sb.storage
+      .from(this.BUCKET)
+      .getPublicUrl(path);
+    return data.publicUrl;
+  },
+
+  /* Delete an image by its full public URL */
+  async deleteImage(url) {
+    if (!url) return;
+    try {
+      const path = url.split(`/${this.BUCKET}/`)[1];
+      if (path) await Storage.sb.storage.from(this.BUCKET).remove([path]);
+    } catch (e) {
+      console.warn("deleteImage:", e);
+    }
+  },
+};
+
+/* ============================================================
+   13. JS: STATE & RENDER
+   Single source of truth. Call App.setState(patch) to update.
+   ============================================================ */
+const App = {
+  state: {
+    /* Loaded from Supabase */
+    config: {
+      site_name:    "My Catalog",
+      hero_subtitle:"Browse our listings and get in touch directly.",
+      logo_url:     "",
+      colors:       { primary: "#22c55e", bg: "#fafaf9" },
+      contact:      { email: "", whatsapp: "", address: "" },
+    },
+    items: [],
+
+    /* Session */
+    isAdmin:  false,
+    session:  null,
+
+    /* Routing */
+    view:          "home",   // "home" | "detail" | "admin"
+    selectedItemId: null,
+    activeImageIndex: 0,
+
+    /* Modals */
+    modal:         null,     // "login"|"addItem"|"settings"|"contact"|"addPhoto"|null
+    editingItemId: null,
+
+    /* Async flags */
+    loading:  false,
+    saving:   false,
+
+    /* Transient upload buffer */
+    _pendingFrontImg: null,
+    _pendingFrontFile: null,
+
+    notification: null,
+  },
+
+  setState(patch) {
+    Object.assign(this.state, patch);
+    this.render();
+  },
+
+  notify(msg, type = "success") {
+    this.setState({ notification: { msg, type } });
+    setTimeout(() => this.setState({ notification: null }), 3200);
+  },
+
+  render() {
+    applyTheme(this.state.config.colors);
+    document.getElementById("app").innerHTML = buildFullUI(this.state);
+    attachDomEvents(this.state);
+  },
+};
+
+/* ============================================================
+   14. JS: THEME ENGINE
+   ALL colors — including every gradient — derive from the
+   primary color here. Nothing is hardcoded in CSS.
+   ============================================================ */
+function applyTheme(colors = {}) {
+  const root = document.documentElement.style;
+  const p    = colors.primary || "#22c55e";
+  const bg   = colors.bg      || "#fafaf9";
+
+  /* Parse primary hex to RGB for rgba() */
+  const hex = p.replace("#", "");
+  const r   = parseInt(hex.slice(0,2), 16);
+  const g   = parseInt(hex.slice(2,4), 16);
+  const b   = parseInt(hex.slice(4,6), 16);
+
+  /* Core brand colors */
+  root.setProperty("--primary",       p);
+  root.setProperty("--primary-dark",  shadeHex(p, -28));
+  root.setProperty("--primary-light", `rgba(${r},${g},${b},0.12)`);
+  root.setProperty("--accent",        shadeHex(p, -38));
+  root.setProperty("--bg",            bg);
+
+  /* Hero background gradient — light wash of primary */
+  root.setProperty("--grad-hero-a",   `rgba(${r},${g},${b},0.14)`);
+  root.setProperty("--grad-hero-b",   `rgba(${r},${g},${b},0.04)`);
+
+  /* Card emoji & gallery empty state gradient */
+  root.setProperty("--grad-card-a",   `rgba(${r},${g},${b},0.19)`);
+  root.setProperty("--grad-card-b",   `rgba(${r},${g},${b},0.07)`);
+}
+
+/* Lighten (+) or darken (-) a hex color by amt (0-255 range) */
+function shadeHex(hex, amt) {
+  const n = parseInt(hex.replace("#",""), 16);
+  const r = Math.min(255, Math.max(0, (n >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((n >> 8) & 0xFF) + amt));
+  const b = Math.min(255, Math.max(0, (n & 0xFF) + amt));
+  return `rgb(${r},${g},${b})`;
+}
+
+/* ============================================================
+   15. JS: BUILDERS — NAV / HERO
+   ============================================================ */
+function buildNav(state) {
+  const { config, isAdmin } = state;
+  const brand = config.logo_url
+    ? `<img src="${escAttr(config.logo_url)}" class="nav-brand-logo" alt="${escHtml(config.site_name)}"/>`
+    : `<span class="nav-brand-text">${escHtml(config.site_name)}</span>`;
+  return `
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-brand" onclick="Nav.goHome()">${brand}</div>
+      <div class="nav-actions">
+        ${isAdmin ? `
+          <button class="btn btn-ghost" onclick="Nav.goAdmin()">⚙ Admin</button>
+          <button class="btn btn-ghost" onclick="Auth.logout()">Exit</button>
+          <button class="btn-add-item" onclick="Items.openAddModal()" title="Add new item">+</button>
+        ` : `
+          <button class="btn btn-ghost" onclick="Auth.openLogin()">Admin</button>
+        `}
+      </div>
+    </div>
+  </nav>`;
+}
+
+function buildHero(state) {
+  const { config } = state;
+  /* Hero shows logo large if set, otherwise site name as heading */
+  const logoOrName = config.logo_url
+    ? `<img src="${escAttr(config.logo_url)}" class="hero-logo" alt="${escHtml(config.site_name)}"/>`
+    : `<h1 class="hero-site-name">${escHtml(config.site_name)}</h1>`;
+  return `
+  <div class="hero fade-in">
+    ${logoOrName}
+    <p class="hero-subtitle">${escHtml(config.hero_subtitle)}</p>
+  </div>`;
+}
+
+/* ============================================================
+   16. JS: BUILDERS — HOME / CARDS
+   ============================================================ */
+function buildHome(state) {
+  const { items, isAdmin } = state;
+  const grid = items.length === 0
+    ? `<div class="empty-state">
+         <div class="empty-state-icon">📦</div>
+         <h3>No listings yet</h3>
+         <p>${isAdmin ? "Click the + button to add your first item." : "Check back soon."}</p>
+       </div>`
+    : `<div class="catalog-grid">${items.map(buildCard).join("")}</div>`;
+  return `
+  ${buildHero(state)}
+  <div class="catalog-section fade-in">
+    <div class="section-heading">Browse Listings</div>
+    ${grid}
+  </div>`;
+}
+
+function buildCard(item) {
+  const photo = item.front_image_url
+    ? `<img src="${escAttr(item.front_image_url)}" class="card-image" alt="${escHtml(item.name)}" loading="lazy"/>`
+    : `<div class="card-emoji">${item.emoji || "📦"}</div>`;
+  const price = item.price_required && item.price
+    ? `<div class="card-price">${escHtml(item.price)}</div>`
+    : `<div class="card-no-price">Contact for info</div>`;
+  return `
+  <div class="card" onclick="Nav.openItem('${escAttr(item.id)}')">
+    ${photo}
+    <div class="card-body">
+      <div class="card-name">${escHtml(item.name)}</div>
+      ${price}
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   17. JS: BUILDERS — DETAIL PAGE
+   ============================================================ */
+function buildDetail(state) {
+  const item = state.items.find(i => i.id === state.selectedItemId);
+  if (!item) return `<div class="detail-wrap"><button class="back-link" onclick="Nav.goHome()">← Back</button><p>Item not found.</p></div>`;
+
+  /* All photos: front first, then extras */
+  const allPhotos = [item.front_image_url, ...(item.images || [])].filter(Boolean);
+  const activePhoto = allPhotos[state.activeImageIndex] || "";
+
+  const mainDisplay = activePhoto
+    ? `<img src="${escAttr(activePhoto)}" class="gallery-main" id="main-img" alt="${escHtml(item.name)}"/>`
+    : `<div class="gallery-main-empty">${item.emoji || "📦"}</div>`;
+
+  const thumbs = allPhotos.map((src, i) => `
+    <img src="${escAttr(src)}" class="thumb ${i === state.activeImageIndex ? "active" : ""}"
+      onclick="App.setState({activeImageIndex:${i}})" alt="Photo ${i+1}" loading="lazy"/>`
+  ).join("");
+
+  const addThumb = state.isAdmin
+    ? `<button class="thumb-add-btn" onclick="App.setState({modal:'addPhoto'})" title="Add photo">+</button>`
+    : "";
+
+  const specsHtml = item.specs && item.specs.length > 0
+    ? `<div class="specs-box">${item.specs.map(s => `
+        <div class="spec-row">
+          <span class="spec-key">${escHtml(s.label)}</span>
+          <span class="spec-val">${escHtml(s.value)}</span>
+        </div>`).join("")}
+       </div>`
+    : "";
+
+  const waCTA = state.config.contact.whatsapp
+    ? `<button class="cta-whatsapp" onclick="Nav.openWhatsapp('${escAttr(item.name)}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        WhatsApp
+       </button>`
+    : "";
+
+  const adminTools = state.isAdmin
+    ? `<div class="admin-toolbar">
+        <div class="admin-toolbar-label">Admin Tools</div>
+        <div class="admin-toolbar-btns">
+          <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')">✏ Edit</button>
+          <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')">🗑 Delete</button>
+          <button class="btn btn-primary" onclick="App.setState({modal:'addPhoto'})">+ Add Photo</button>
+        </div>
+       </div>`
+    : "";
+
+  return `
+  <div class="detail-wrap fade-in">
+    <button class="back-link" onclick="Nav.goHome()">← Back to catalog</button>
+    <div class="detail-grid">
+      <div>
+        ${mainDisplay}
+        <div class="gallery-thumbs">${thumbs}${addThumb}</div>
+      </div>
+      <div>
+        <h1 class="detail-name">${escHtml(item.name)}</h1>
+        ${item.price_required && item.price
+          ? `<div class="detail-price">${escHtml(item.price)}</div>`
+          : `<div class="detail-price" style="color:var(--muted);font-size:1rem;font-style:italic">Reach out for pricing</div>`}
+        ${item.description ? `<p class="detail-desc">${escHtml(item.description)}</p>` : ""}
+        ${specsHtml}
+        <button class="cta-email" onclick="App.setState({modal:'contact'})">✉ Contact About This</button>
+        ${waCTA}
+        ${adminTools}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   18. JS: BUILDERS — ADMIN PANEL
+   ============================================================ */
+function buildAdmin(state) {
+  const { config, items } = state;
+  return `
+  <div class="admin-wrap fade-in">
+    <h2 class="admin-heading">Admin Panel</h2>
+    <p class="admin-subhead">Manage listings, contact info and appearance</p>
+
+    <div class="panel-block">
+      <div class="panel-block-title">Quick Actions</div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="Items.openAddModal()">+ Add Item</button>
+        <button class="btn btn-ghost"   onclick="Settings.openAppearance()">🎨 Appearance</button>
+      </div>
+    </div>
+
+    <div class="panel-block">
+      <div class="panel-block-title">Contact & Site Text</div>
+      <div class="form-group"><label class="form-label">Email</label>
+        <input class="form-input" id="cfg-email"    value="${escAttr(config.contact.email    || "")}" placeholder="your@email.com"/></div>
+      <div class="form-group"><label class="form-label">WhatsApp (with country code)</label>
+        <input class="form-input" id="cfg-wa"       value="${escAttr(config.contact.whatsapp || "")}" placeholder="+5541999999999"/></div>
+      <div class="form-group"><label class="form-label">Address / Location</label>
+        <input class="form-input" id="cfg-address"  value="${escAttr(config.contact.address  || "")}" placeholder="City, Country"/></div>
+      <div class="form-group"><label class="form-label">Hero Subtitle</label>
+        <input class="form-input" id="cfg-subtitle" value="${escAttr(config.hero_subtitle    || "")}"/></div>
+      <div class="form-group"><label class="form-label">Site Name</label>
+        <input class="form-input" id="cfg-sitename" value="${escAttr(config.site_name        || "")}"/></div>
+      <button class="btn btn-primary ${state.saving ? "disabled" : ""}"
+        onclick="Settings.saveConfig()" ${state.saving ? "disabled" : ""}>
+        ${state.saving ? `<span class="spinner"></span>` : "Save Settings"}
+      </button>
+    </div>
+
+    <div class="panel-block">
+      <div class="panel-block-title">All Items (${items.length})</div>
+      ${items.length === 0 ? `<p style="color:var(--muted);font-size:.9rem">No items yet.</p>` : ""}
+      ${items.map(item => `
+        <div class="admin-item-row">
+          ${item.front_image_url
+            ? `<img src="${escAttr(item.front_image_url)}" class="admin-item-thumb" alt=""/>`
+            : `<div class="admin-item-thumb">${item.emoji || "📦"}</div>`}
+          <div class="admin-item-info">
+            <div class="admin-item-name">${escHtml(item.name)}</div>
+            <div class="admin-item-meta">${item.price_required ? escHtml(item.price || "") : "No price listed"}</div>
+          </div>
+          <div class="admin-item-btns">
+            <button class="btn btn-ghost" onclick="Nav.openItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">View</button>
+            <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Edit</button>
+            <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Delete</button>
+          </div>
+        </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   19. JS: BUILDERS — MODALS
+   ============================================================ */
+function buildModals(state) {
+  switch (state.modal) {
+    case "login":    return buildLoginModal(state);
+    case "addItem":  return buildAddItemModal(state);
+    case "settings": return buildSettingsModal(state);
+    case "contact":  return buildContactModal(state);
+    case "addPhoto": return buildAddPhotoModal();
+    default:         return "";
+  }
+}
+
+function buildLoginModal(state) {
+  return `
+  <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
+    <div class="modal" id="the-modal">
+      <div class="modal-title">Admin Login</div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="login-email" type="email" placeholder="your@email.com"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="login-pass" type="password" placeholder="Your password"
+          onkeydown="if(event.key==='Enter') Auth.tryLogin()"/>
+      </div>
+      ${state.saving ? `<p style="font-size:.85rem;color:var(--muted)">Signing in…</p>` : ""}
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="Modals.close()">Cancel</button>
+        <button class="btn btn-primary" onclick="Auth.tryLogin()" ${state.saving?"disabled":""}>
+          ${state.saving ? `<span class="spinner"></span>` : "Login"}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildAddItemModal(state) {
+  const item = state.editingItemId
+    ? state.items.find(i => i.id === state.editingItemId)
+    : null;
+  const isEdit = !!item;
+  const specsHtml = (item?.specs?.length ? item.specs : [{ label:"", value:"" }])
+    .map((s, i) => buildSpecRow(s.label, s.value, i)).join("");
+
+  /* Preview: show pending upload preview, or existing image, or nothing */
+  const previewSrc = state._pendingFrontImg || item?.front_image_url || "";
+
+  return `
+  <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
+    <div class="modal" id="the-modal">
+      <div class="modal-title">${isEdit ? "Edit Item" : "Add New Item"}</div>
+
+      <div class="form-group">
+        <label class="form-label">Name *</label>
+        <input class="form-input" id="f-name" value="${escAttr(item?.name || "")}" placeholder="e.g. Golden Retriever – Max"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Emoji Icon (shown when no photo)</label>
+        <input class="form-input" id="f-emoji" value="${escAttr(item?.emoji || "📦")}" maxlength="4" style="width:90px"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Front Photo</label>
+        ${previewSrc
+          ? `<img src="${escAttr(previewSrc)}" class="img-preview-inline" id="front-preview"/>`
+          : `<img id="front-preview" class="img-preview-inline" style="display:none"/>`}
+        <label class="upload-zone" for="f-frontimg">
+          <span class="upload-zone-icon">📷</span>
+          <span>${previewSrc ? "Click to replace" : "Click to upload"}</span>
+          <input type="file" id="f-frontimg" accept="image/*" style="display:none"
+            onchange="Items.previewFront(event)"/>
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label class="form-checkbox-row">
+          <input type="checkbox" id="f-pricetoggle"
+            ${item?.price_required ? "checked" : ""}
+            onchange="Items.togglePriceField(this.checked)"/>
+          Show a price
+        </label>
+      </div>
+      <div class="form-group" id="price-field" style="${item?.price_required ? "" : "display:none"}">
+        <label class="form-label">Price</label>
+        <input class="form-input" id="f-price" value="${escAttr(item?.price || "")}" placeholder="e.g. $50"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-input" id="f-desc" rows="3" style="resize:vertical">${escHtml(item?.description || "")}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Specifications</label>
+        <div id="specs-container">${specsHtml}</div>
+        <button class="btn btn-ghost" onclick="Items.addSpecRow()" style="font-size:.83rem;padding:5px 12px;margin-top:.4rem">+ Add row</button>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="Items.cancelModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="Items.saveItem()" ${state.saving?"disabled":""}>
+          ${state.saving ? `<span class="spinner"></span>` : (isEdit ? "💾 Save Changes" : "Add Item")}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildSpecRow(label, value, index) {
+  return `
+  <div class="spec-entry" id="spec-row-${index}">
+    <input class="form-input" data-spec-label placeholder="Label (e.g. Age)"   value="${escAttr(label)}"/>
+    <input class="form-input" data-spec-value placeholder="Value (e.g. 2 yrs)" value="${escAttr(value)}"/>
+    <button class="spec-remove" onclick="Items.removeSpecRow(${index})">×</button>
+  </div>`;
+}
+
+function buildSettingsModal(state) {
+  const { config } = state;
+  return `
+  <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
+    <div class="modal" id="the-modal">
+      <div class="modal-title">🎨 Appearance</div>
+
+      <div class="form-group">
+        <label class="form-label">Logo (shown large in hero + small in nav)</label>
+        ${config.logo_url
+          ? `<img src="${escAttr(config.logo_url)}" style="height:52px;border-radius:6px;margin-bottom:.5rem;object-fit:contain"/>`
+          : ""}
+        <label class="upload-zone" style="min-height:80px" for="f-logo">
+          <span>${config.logo_url ? "Click to replace logo" : "Upload Logo"}</span>
+          <input type="file" id="f-logo" accept="image/*" style="display:none"
+            onchange="Settings.uploadLogo(event)"/>
+        </label>
+        ${config.logo_url
+          ? `<button onclick="Settings.clearLogo()" style="font-size:.8rem;color:var(--danger);background:none;border:none;cursor:pointer;margin-top:.35rem">✕ Remove logo</button>`
+          : ""}
+      </div>
+
+      <!-- Primary color — all gradients, buttons, accents derive from this -->
+      <div class="color-config-row">
+        <span class="color-config-label">Primary Color</span>
+        <input type="color" class="color-config-picker" id="cp-primary"
+          value="${escAttr(config.colors?.primary || "#22c55e")}"
+          oninput="Settings.livePreview(this.value)"/>
+        <span style="font-size:.83rem;color:var(--muted)">Buttons, hero &amp; card tints</span>
+      </div>
+
+      <!-- Background color -->
+      <div class="color-config-row">
+        <span class="color-config-label">Background</span>
+        <input type="color" class="color-config-picker" id="cp-bg"
+          value="${escAttr(config.colors?.bg || "#fafaf9")}"/>
+        <span style="font-size:.83rem;color:var(--muted)">Page background</span>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-outline" onclick="Settings.cancelAppearance()">Cancel</button>
+        <button class="btn btn-primary" onclick="Settings.saveAppearance()" ${state.saving?"disabled":""}>
+          ${state.saving ? `<span class="spinner"></span>` : "Save"}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildContactModal(state) {
+  const c    = state.config.contact;
+  const item = state.items.find(i => i.id === state.selectedItemId);
+  const subj = item ? encodeURIComponent(`Inquiry: ${item.name}`) : "";
+  const waMsg= item ? encodeURIComponent(`Hi! I'm interested in: ${item.name}`) : "";
+
+  const emailRow = c.email ? `
+    <div class="contact-option">
+      <span class="contact-option-icon">✉</span>
+      <div>
+        <div class="contact-option-label">Email</div>
+        <a class="contact-option-value" href="mailto:${escAttr(c.email)}?subject=${subj}">${escHtml(c.email)}</a>
+      </div>
+    </div>` : "";
+
+  const waRow = c.whatsapp ? `
+    <div class="contact-option">
+      <span class="contact-option-icon">📱</span>
+      <div>
+        <div class="contact-option-label">WhatsApp</div>
+        <a class="contact-option-value"
+          href="https://wa.me/${c.whatsapp.replace(/\D/g,"")}?text=${waMsg}"
+          target="_blank" rel="noopener">${escHtml(c.whatsapp)}</a>
+      </div>
+    </div>` : "";
+
+  const addrRow = c.address ? `
+    <div class="contact-option">
+      <span class="contact-option-icon">📍</span>
+      <div>
+        <div class="contact-option-label">Location</div>
+        <div class="contact-option-value" style="color:var(--muted)">${escHtml(c.address)}</div>
+      </div>
+    </div>` : "";
+
+  return `
+  <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
+    <div class="modal" id="the-modal">
+      <div class="modal-title">Get in Touch</div>
+      ${item ? `<p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">About: <strong>${escHtml(item.name)}</strong></p>` : ""}
+      <div style="background:var(--primary-light);border-radius:var(--radius-sm);padding:.5rem 1rem">
+        ${emailRow}${waRow}${addrRow}
+        ${!c.email && !c.whatsapp
+          ? `<p style="color:var(--muted);font-size:.9rem;padding:.5rem 0">No contact info configured yet.</p>`
+          : ""}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="Modals.close()">Close</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildAddPhotoModal() {
+  return `
+  <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
+    <div class="modal" id="the-modal">
+      <div class="modal-title">Add Extra Photos</div>
+      <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
+        These appear only on the item's detail page, not on the homepage grid.
+      </p>
+      <label class="upload-zone" for="f-extraphotos">
+        <span class="upload-zone-icon">📷</span>
+        <span>Select one or more photos</span>
+        <input type="file" id="f-extraphotos" accept="image/*" multiple style="display:none"
+          onchange="Items.addExtraPhotos(event)"/>
+      </label>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="Modals.close()">Done</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ============================================================
+   20. JS: BUILDERS — FOOTER
+   ============================================================ */
+function buildFooter(state) {
+  const { config, items } = state;
+  const c = config.contact;
+  return `
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand-name">${escHtml(config.site_name)}</div>
+        <p class="footer-brand-desc">${escHtml(config.hero_subtitle)}</p>
+      </div>
+      <div>
+        <div class="footer-col-title">Contact</div>
+        ${c.email    ? `<a class="footer-link" href="mailto:${escAttr(c.email)}">✉ ${escHtml(c.email)}</a>` : ""}
+        ${c.whatsapp ? `<a class="footer-link" href="https://wa.me/${c.whatsapp.replace(/\D/g,"")}" target="_blank" rel="noopener">📱 ${escHtml(c.whatsapp)}</a>` : ""}
+        ${c.address  ? `<span class="footer-link" style="cursor:default">📍 ${escHtml(c.address)}</span>` : ""}
+      </div>
+      <div>
+        <div class="footer-col-title">Listings</div>
+        <span class="footer-link" onclick="Nav.goHome()">All Items</span>
+        ${items.slice(0, 5).map(i =>
+          `<span class="footer-link" onclick="Nav.openItem('${escAttr(i.id)}')">${escHtml(i.name)}</span>`
+        ).join("")}
+      </div>
+    </div>
+    <div class="footer-bottom">© ${new Date().getFullYear()} ${escHtml(config.site_name)}. All rights reserved.</div>
+  </footer>`;
+}
+
+/* Top-level assembler */
+function buildFullUI(state) {
+  let body = "";
+  if (state.view === "home")   body = buildHome(state);
+  if (state.view === "detail") body = buildDetail(state);
+  if (state.view === "admin")  body = buildAdmin(state);
+  return `
+    ${buildNav(state)}
+    ${buildToast(state)}
+    ${body}
+    ${buildFooter(state)}
+    ${buildModals(state)}
+  `;
+}
+
+function buildToast(state) {
+  if (!state.notification) return "";
+  const cls = state.notification.type === "error"
+    ? "toast toast-error"
+    : state.notification.type === "info"
+    ? "toast toast-info"
+    : "toast toast-success";
+  return `<div class="${cls}">${escHtml(state.notification.msg)}</div>`;
+}
+
+function attachDomEvents(state) {
+  if (state.modal === "login") {
+    requestAnimationFrame(() => document.getElementById("login-email")?.focus());
+  }
+}
+
+/* ============================================================
+   21. JS: ACTIONS — AUTH
+   Uses Supabase email+password auth.
+   Password is never stored in code — managed entirely by Supabase.
+   ============================================================ */
+const Auth = {
+  openLogin() {
+    App.setState({ modal: "login" });
+  },
+
+  async tryLogin() {
+    const email = document.getElementById("login-email")?.value?.trim();
+    const pass  = document.getElementById("login-pass")?.value;
+    if (!email || !pass) { App.notify("Enter email and password", "error"); return; }
+    App.setState({ saving: true });
+    const { data, error } = await Storage.sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      App.notify("Login failed: " + error.message, "error");
+      App.setState({ saving: false });
+    } else {
+      App.setState({ isAdmin: true, session: data.session, modal: null, saving: false });
+      App.notify("Welcome, Admin!");
+    }
+  },
+
+  async logout() {
+    await Storage.sb.auth.signOut();
+    App.setState({ isAdmin: false, session: null });
+  },
+};
+
+/* ============================================================
+   22. JS: ACTIONS — ITEMS
+   ============================================================ */
+const Items = {
+  openAddModal() {
+    App.state._pendingFrontImg  = null;
+    App.state._pendingFrontFile = null;
+    App.setState({ modal: "addItem", editingItemId: null });
+  },
+
+  openEditModal(id) {
+    App.state._pendingFrontImg  = null;
+    App.state._pendingFrontFile = null;
+    App.setState({ modal: "addItem", editingItemId: id });
+  },
+
+  cancelModal() {
+    App.state._pendingFrontImg  = null;
+    App.state._pendingFrontFile = null;
+    App.setState({ modal: null, editingItemId: null });
+  },
+
+  /* Show a local preview of the chosen file without uploading yet */
+  async previewFront(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    App.state._pendingFrontFile = file;
+    App.state._pendingFrontImg  = URL.createObjectURL(file);
+    const preview = document.getElementById("front-preview");
+    if (preview) { preview.src = App.state._pendingFrontImg; preview.style.display = "block"; }
+  },
+
+  togglePriceField(show) {
+    const el = document.getElementById("price-field");
+    if (el) el.style.display = show ? "" : "none";
+  },
+
+  addSpecRow() {
+    const container = document.getElementById("specs-container");
+    if (!container) return;
+    const i = container.querySelectorAll(".spec-entry").length;
+    container.insertAdjacentHTML("beforeend", buildSpecRow("", "", i));
+  },
+
+  removeSpecRow(index) {
+    document.getElementById("spec-row-" + index)?.remove();
+  },
+
+  _collectSpecs() {
+    const labels = document.querySelectorAll("[data-spec-label]");
+    const values = document.querySelectorAll("[data-spec-value]");
+    const specs  = [];
+    labels.forEach((el, i) => {
+      if (el.value.trim() && values[i]?.value.trim())
+        specs.push({ label: el.value.trim(), value: values[i].value.trim() });
+    });
+    return specs;
+  },
+
+  async saveItem() {
+    const name = document.getElementById("f-name")?.value?.trim();
+    if (!name) { App.notify("Name is required", "error"); return; }
+
+    App.setState({ saving: true });
+
+    try {
+      const emoji          = document.getElementById("f-emoji")?.value          || "📦";
+      const price_required = document.getElementById("f-pricetoggle")?.checked  || false;
+      const price          = document.getElementById("f-price")?.value?.trim()  || "";
+      const description    = document.getElementById("f-desc")?.value?.trim()   || "";
+      const specs          = this._collectSpecs();
+
+      /* Upload front image only if a new file was chosen */
+      let front_image_url = App.state.editingItemId
+        ? App.state.items.find(i => i.id === App.state.editingItemId)?.front_image_url || ""
+        : "";
+
+      if (App.state._pendingFrontFile) {
+        front_image_url = await ImageUpload.uploadImage(App.state._pendingFrontFile);
+      }
+
+      if (App.state.editingItemId) {
+        await Storage.updateItem(App.state.editingItemId, {
+          name, emoji, price_required, price, description, specs, front_image_url
+        });
+        /* Update local state immediately */
+        const idx = App.state.items.findIndex(i => i.id === App.state.editingItemId);
+        if (idx > -1) Object.assign(App.state.items[idx], {
+          name, emoji, price_required, price, description, specs, front_image_url
+        });
+        App.notify("Item updated!");
+      } else {
+        const created = await Storage.createItem({
+          name, emoji, price_required, price, description, specs, front_image_url, images: []
+        });
+        App.state.items.push(created);
+        App.notify("Item added!");
+      }
+
+      App.state._pendingFrontImg  = null;
+      App.state._pendingFrontFile = null;
+      App.setState({ modal: null, editingItemId: null, saving: false });
+
+    } catch (e) {
+      App.notify("Save failed: " + e.message, "error");
+      App.setState({ saving: false });
+    }
+  },
+
+  async deleteItem(id) {
+    if (!confirm("Delete this item? This cannot be undone.")) return;
+    try {
+      const item = App.state.items.find(i => i.id === id);
+      /* Clean up images from storage */
+      if (item?.front_image_url) await ImageUpload.deleteImage(item.front_image_url);
+      for (const url of (item?.images || [])) await ImageUpload.deleteImage(url);
+      await Storage.deleteItem(id);
+      App.state.items = App.state.items.filter(i => i.id !== id);
+      if (App.state.selectedItemId === id) {
+        App.setState({ view: "home", selectedItemId: null });
+      } else {
+        App.notify("Item deleted");
+        App.render();
+      }
+    } catch (e) {
+      App.notify("Delete failed: " + e.message, "error");
+    }
+  },
+
+  async addExtraPhotos(event) {
+    const files = Array.from(event.target.files);
+    if (!files.length) return;
+    const item = App.state.items.find(i => i.id === App.state.selectedItemId);
+    if (!item) return;
+    App.setState({ saving: true });
+    try {
+      const urls   = await Promise.all(files.map(f => ImageUpload.uploadImage(f)));
+      const images = [...(item.images || []), ...urls];
+      await Storage.updateItem(item.id, { images });
+      item.images = images;
+      App.notify(`${urls.length} photo(s) added!`);
+      App.setState({ modal: null, saving: false });
+    } catch (e) {
+      App.notify("Upload failed: " + e.message, "error");
+      App.setState({ saving: false });
+    }
+  },
+};
+
+/* ============================================================
+   23. JS: ACTIONS — SETTINGS
+   ============================================================ */
+const Settings = {
+  /* Original colors before the live preview changes them */
+  _originalColors: null,
+
+  openAppearance() {
+    /* Snapshot current colors so we can restore on cancel */
+    this._originalColors = { ...App.state.config.colors };
+    App.setState({ modal: "settings" });
+  },
+
+  /* Live-preview the primary color as the user drags the color picker */
+  livePreview(primaryColor) {
+    applyTheme({ ...App.state.config.colors, primary: primaryColor });
+  },
+
+  cancelAppearance() {
+    /* Restore original colors on cancel */
+    if (this._originalColors) applyTheme(this._originalColors);
+    Modals.close();
+  },
+
+  async saveConfig() {
+    App.setState({ saving: true });
+    try {
+      const contact = {
+        email:    document.getElementById("cfg-email")?.value    || "",
+        whatsapp: document.getElementById("cfg-wa")?.value       || "",
+        address:  document.getElementById("cfg-address")?.value  || "",
+      };
+      const update = {
+        hero_subtitle: document.getElementById("cfg-subtitle")?.value || App.state.config.hero_subtitle,
+        site_name:     document.getElementById("cfg-sitename")?.value || App.state.config.site_name,
+        contact,
+      };
+      await Storage.saveConfig(update);
+      Object.assign(App.state.config, update);
+      App.notify("Settings saved!");
+      App.setState({ saving: false });
+    } catch (e) {
+      App.notify("Save failed: " + e.message, "error");
+      App.setState({ saving: false });
+    }
+  },
+
+  async uploadLogo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    App.setState({ saving: true });
+    try {
+      const url = await ImageUpload.uploadImage(file);
+      await Storage.saveConfig({ logo_url: url });
+      App.state.config.logo_url = url;
+      App.notify("Logo updated!");
+      App.setState({ saving: false });
+    } catch (e) {
+      App.notify("Upload failed: " + e.message, "error");
+      App.setState({ saving: false });
+    }
+  },
+
+  async clearLogo() {
+    if (!confirm("Remove the logo?")) return;
+    try {
+      await ImageUpload.deleteImage(App.state.config.logo_url);
+      await Storage.saveConfig({ logo_url: "" });
+      App.state.config.logo_url = "";
+      App.render();
+    } catch (e) {
+      App.notify("Failed: " + e.message, "error");
+    }
+  },
+
+  async saveAppearance() {
+    const primary = document.getElementById("cp-primary")?.value;
+    const bg      = document.getElementById("cp-bg")?.value;
+    const colors  = {
+      primary: primary || App.state.config.colors.primary,
+      bg:      bg      || App.state.config.colors.bg,
+    };
+    App.setState({ saving: true });
+    try {
+      await Storage.saveConfig({ colors });
+      App.state.config.colors = colors;
+      App.notify("Appearance saved!");
+      App.setState({ modal: null, saving: false });
+    } catch (e) {
+      App.notify("Save failed: " + e.message, "error");
+      App.setState({ saving: false });
+    }
+  },
+};
+
+/* ============================================================
+   24. JS: ACTIONS — NAV
+   ============================================================ */
+const Nav = {
+  goHome()  { App.setState({ view: "home",   selectedItemId: null }); },
+  goAdmin() { App.setState({ view: "admin" }); },
+
+  openItem(id) {
+    App.setState({ view: "detail", selectedItemId: id, activeImageIndex: 0 });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  },
+
+  openWhatsapp(itemName) {
+    const number = App.state.config.contact.whatsapp?.replace(/\D/g, "");
+    if (!number) return;
+    const msg = encodeURIComponent(`Hi! I'm interested in: ${itemName}`);
+    window.open(`https://wa.me/${number}?text=${msg}`, "_blank", "noopener");
+  },
+};
+
+/* ============================================================
+   25. JS: ACTIONS — MODALS
+   ============================================================ */
+const Modals = {
+  close() {
+    App.state._pendingFrontImg  = null;
+    App.state._pendingFrontFile = null;
+    App.setState({ modal: null, editingItemId: null, saving: false });
+  },
+
+  closeOnBackdrop(event) {
+    if (event.target.id === "overlay") this.close();
+  },
+};
+
+/* ============================================================
+   26. JS: HELPERS
+   ============================================================ */
+function escHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+function escAttr(s) { return escHtml(s); }
+
+/* ============================================================
+   27. JS: INIT
+   Loads Supabase SDK, restores session, fetches all data,
+   then reveals the app.
+   ============================================================ */
+(async function init() {
+  /* Load Supabase JS from CDN */
+  await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
+
+  /* Create the Supabase client */
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  Storage.init(client);
+
+  /* Restore any existing auth session */
+  const { data: { session } } = await client.auth.getSession();
+  if (session) {
+    App.state.isAdmin = true;
+    App.state.session = session;
+  }
+
+  /* Fetch config and items in parallel */
+  const [config, items] = await Promise.all([
+    Storage.loadConfig(),
+    Storage.loadItems(),
+  ]);
+
+  /* Merge loaded config with defaults */
+  if (config) {
+    App.state.config = {
+      site_name:    config.site_name    || "My Catalog",
+      hero_subtitle:config.hero_subtitle|| "Browse our listings and get in touch.",
+      logo_url:     config.logo_url     || "",
+      colors:       config.colors       || { primary: "#22c55e", bg: "#fafaf9" },
+      contact:      config.contact      || { email: "", whatsapp: "", address: "" },
+    };
+  }
+  App.state.items = items;
+
+  /* Hide loading screen, reveal app */
+  const loading = document.getElementById("loading-screen");
+  const app     = document.getElementById("app");
+  loading.style.opacity = "0";
+  setTimeout(() => loading.remove(), 400);
+  App.render();
+  app.style.opacity = "1";
+})();
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s  = document.createElement("script");
+    s.src    = src;
+    s.onload = resolve;
+    s.onerror= reject;
+    document.head.appendChild(s);
+  });
+}
+
+/*
+  ============================================================
+  SUPABASE SQL SETUP
+  Run this once in: Supabase → SQL Editor → New Query
+  ============================================================
+
+  -- Items table
+  create table if not exists items (
+    id               uuid primary key default gen_random_uuid(),
+    name             text not null,
+    emoji            text default '📦',
+    front_image_url  text default '',
+    price            text default '',
+    price_required   boolean default false,
+    description      text default '',
+    specs            jsonb default '[]',
+    images           jsonb default '[]',
+    created_at       timestamptz default now()
+  );
+
+  -- Site config (always one row with id=1)
+  create table if not exists site_config (
+    id            int primary key default 1,
+    site_name     text default 'My Catalog',
+    hero_subtitle text default 'Browse our listings and get in touch.',
+    logo_url      text default '',
+    colors        jsonb default '{"primary":"#22c55e","bg":"#fafaf9"}',
+    contact       jsonb default '{"email":"","whatsapp":"","address":""}'
+  );
+  insert into site_config (id) values (1) on conflict do nothing;
+
+  -- Row Level Security
+  alter table items       enable row level security;
+  alter table site_config enable row level security;
+
+  create policy "public read items"
+    on items for select using (true);
+  create policy "admin write items"
+    on items for all
+    using (auth.role() = 'authenticated')
+    with check (auth.role() = 'authenticated');
+
+  create policy "public read config"
+    on site_config for select using (true);
+  create policy "admin write config"
+    on site_config for all
+    using (auth.role() = 'authenticated')
+    with check (auth.role() = 'authenticated');
+
+  -- Storage bucket (do this in Supabase UI, not SQL):
+  --   Storage → New bucket → name: "catalog-images" → Public: ON
+  --   Then add a policy: allow authenticated users to upload/delete
+
+  ============================================================
+*/
+</script>
+</body>
+</html>
