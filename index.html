@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Catalog</title>
+<title>Catálogo</title>
 <!--
   ============================================================
   CATALOG TEMPLATE — Final Production Edition
@@ -157,7 +157,7 @@ nav {
 
 /* ============================================================
    3. CSS: HERO
-   Background gradient and card emoji tints all come from
+   Fundo gradient and card emoji tints all come from
    --grad-* variables that the theme engine sets dynamically.
    ============================================================ */
 .hero {
@@ -553,7 +553,7 @@ footer {
 <!-- Loading screen shown while Supabase data loads -->
 <div id="loading-screen">
   <div class="load-spinner"></div>
-  <span style="color:var(--muted);font-size:.9rem">Loading catalog…</span>
+  <span style="color:var(--muted);font-size:.9rem" id="loading-text">Carregando catálogo…</span>
 </div>
 
 <div id="app" style="opacity:0;transition:opacity .4s"></div>
@@ -562,12 +562,244 @@ footer {
 "use strict";
 
 /* ============================================================
+   10-A. JS: I18N MODULE
+   Detects browser language and serves PT-BR or EN strings.
+   To add more languages, add an entry to LANGS below and
+   a matching block in the T object.
+   ============================================================ */
+const LANGS = ["pt", "en"];
+
+/* Detect language: use browser default, fall back to PT */
+function detectLang() {
+  const nav = (navigator.language || navigator.userLanguage || "pt").toLowerCase();
+  if (nav.startsWith("en")) return "en";
+  return "pt"; // default
+}
+
+const LANG = detectLang();
+
+/* All user-facing strings in both languages.
+   Access with: T("key")  */
+const STRINGS = {
+  pt: {
+    loading:           "Carregando catálogo…",
+    admin:             "Admin",
+    exit:              "Sair",
+    add_item_title:    "Adicionar novo item",
+    browse:            "Explorar Itens",
+    no_items_admin:    "Clique no botão + para adicionar o primeiro item.",
+    no_items_visitor:  "Volte em breve.",
+    contact_for_info:  "Consultar preço",
+    reach_out:         "Entre em contato para saber o preço",
+    contact_btn:       "✉ Entrar em Contato",
+    back:              "← Voltar ao catálogo",
+    admin_tools:       "Ferramentas Admin",
+    edit:              "✏ Editar",
+    delete_btn:        "🗑 Excluir",
+    add_photo:         "+ Adicionar Foto",
+    admin_panel:       "Painel Admin",
+    admin_subhead:     "Gerencie itens, contato e aparência",
+    quick_actions:     "Ações Rápidas",
+    add_item_btn:      "+ Adicionar Item",
+    appearance_btn:    "🎨 Aparência",
+    contact_section:   "Contato & Texto do Site",
+    email_label:       "Email",
+    whatsapp_label:    "WhatsApp (com código do país)",
+    address_label:     "Endereço / Localização",
+    hero_title_label:  "Título do Hero",
+    subtitle_label:    "Subtítulo do Site",
+    sitename_label:    "Nome do Site",
+    save_settings:     "Salvar Configurações",
+    all_items:         "Todos os Itens",
+    no_items_listed:   "Nenhum item ainda.",
+    no_price:          "Sem preço listado",
+    view_btn:          "Ver",
+    edit_btn_sm:       "Editar",
+    delete_btn_sm:     "Excluir",
+    login_title:       "Login Admin",
+    email_placeholder: "seu@email.com",
+    pass_label:        "Senha",
+    pass_placeholder:  "Sua senha",
+    signing_in:        "Entrando…",
+    login_btn:         "Entrar",
+    cancel:            "Cancelar",
+    add_modal_title:   "Adicionar Novo Item",
+    edit_modal_title:  "Editar Item",
+    name_label:        "Nome *",
+    name_placeholder:  "ex: Golden Retriever – Max",
+    emoji_label:       "Ícone Emoji (exibido sem foto)",
+    front_photo:       "Foto Principal",
+    click_replace:     "Clique para substituir",
+    click_upload:      "Clique para enviar",
+    show_price:        "Mostrar preço",
+    price_label:       "Preço",
+    price_placeholder: "ex: R$ 50",
+    desc_label:        "Descrição",
+    specs_label:       "Especificações",
+    spec_label_ph:     "Rótulo (ex: Idade)",
+    spec_val_ph:       "Valor (ex: 2 anos)",
+    add_row:           "+ Adicionar linha",
+    save_changes:      "💾 Salvar Alterações",
+    appearance_title:  "🎨 Aparência",
+    logo_label:        "Logo (grande no hero, pequeno na nav)",
+    replace_logo:      "Clique para substituir logo",
+    upload_logo:       "Enviar Logo",
+    remove_logo:       "✕ Remover logo",
+    primary_color:     "Cor Principal",
+    primary_hint:      "Botões, hero e cards",
+    bg_color:          "Fundo",
+    bg_hint:           "Cor de fundo da página",
+    contact_title:     "Entre em Contato",
+    about_prefix:      "Sobre: ",
+    no_contact:        "Nenhuma informação de contato configurada.",
+    close:             "Fechar",
+    extra_photos:      "Adicionar Mais Fotos",
+    extra_photos_hint: "${T("extra_photos_hint")}",
+    select_photos:     "Selecione uma ou mais fotos",
+    done:              "Concluído",
+    contact_col:       "Contato",
+    listings_col:      "Itens",
+    rights:            "${T("rights")}",
+    wa_interest:       "Olá! Tenho interesse em:",
+    inquiry:           "Consulta: ",
+    photos_added:      "foto(s) adicionada(s)!",
+    welcome:           "Bem-vindo, Admin!",
+    login_error:       "Erro no login: ",
+    creds_error:       "Digite email e senha",
+    name_required:     "Nome é obrigatório",
+    item_updated:      "Item atualizado!",
+    item_added:        "Item adicionado!",
+    save_error:        "Erro ao salvar: ",
+    delete_confirm:    "Excluir este item? Esta ação não pode ser desfeita.",
+    delete_error:      "Erro ao excluir: ",
+    upload_error:      "Erro no upload: ",
+    settings_saved:    "Configurações salvas!",
+    logo_updated:      "Logo atualizado!",
+    remove_logo_confirm:"Remover o logo?",
+    generic_error:     "Erro: ",
+    appearance_saved:  "Aparência salva!",
+    item_deleted:      "Item excluído",
+    item_not_found:    "Item não encontrado.",
+    email_field:       "Email",
+    location_field:    "Localização",
+  },
+  en: {
+    loading:           "Loading catalog…",
+    admin:             "Admin",
+    exit:              "Exit",
+    add_item_title:    "Add new item",
+    browse:            "Browse Listings",
+    no_items_admin:    "Click the + button to add your first item.",
+    no_items_visitor:  "Check back soon.",
+    contact_for_info:  "Contact for info",
+    reach_out:         "Reach out for pricing",
+    contact_btn:       "✉ Contact About This",
+    back:              "← Back to catalog",
+    admin_tools:       "Admin Tools",
+    edit:              "✏ Edit",
+    delete_btn:        "🗑 Delete",
+    add_photo:         "+ Add Photo",
+    admin_panel:       "Admin Panel",
+    admin_subhead:     "Manage listings, contact info and appearance",
+    quick_actions:     "Quick Actions",
+    add_item_btn:      "+ Add Item",
+    appearance_btn:    "🎨 Appearance",
+    contact_section:   "Contact & Site Text",
+    email_label:       "Email",
+    whatsapp_label:    "WhatsApp (with country code)",
+    address_label:     "Address / Location",
+    hero_title_label:  "Hero Title",
+    subtitle_label:    "Site Subtitle",
+    sitename_label:    "Site Name",
+    save_settings:     "Save Settings",
+    all_items:         "All Items",
+    no_items_listed:   "No items yet.",
+    no_price:          "No price listed",
+    view_btn:          "View",
+    edit_btn_sm:       "Edit",
+    delete_btn_sm:     "Delete",
+    login_title:       "Admin Login",
+    email_placeholder: "your@email.com",
+    pass_label:        "Password",
+    pass_placeholder:  "Your password",
+    signing_in:        "Signing in…",
+    login_btn:         "Login",
+    cancel:            "Cancel",
+    add_modal_title:   "Add New Item",
+    edit_modal_title:  "Edit Item",
+    name_label:        "Name *",
+    name_placeholder:  "e.g. Golden Retriever – Max",
+    emoji_label:       "Emoji Icon (shown when no photo)",
+    front_photo:       "Front Photo",
+    click_replace:     "Click to replace",
+    click_upload:      "Click to upload",
+    show_price:        "Show a price",
+    price_label:       "Price",
+    price_placeholder: "e.g. $50",
+    desc_label:        "Description",
+    specs_label:       "Specifications",
+    spec_label_ph:     "Label (e.g. Age)",
+    spec_val_ph:       "Value (e.g. 2 yrs)",
+    add_row:           "+ Add row",
+    save_changes:      "💾 Save Changes",
+    appearance_title:  "🎨 Appearance",
+    logo_label:        "Logo (shown large in hero + small in nav)",
+    replace_logo:      "Click to replace logo",
+    upload_logo:       "Upload Logo",
+    remove_logo:       "✕ Remove logo",
+    primary_color:     "Primary Color",
+    primary_hint:      "Buttons, hero & card tints",
+    bg_color:          "Background",
+    bg_hint:           "Page background",
+    contact_title:     "Get in Touch",
+    about_prefix:      "About: ",
+    no_contact:        "No contact info configured yet.",
+    close:             "Close",
+    extra_photos:      "Add Extra Photos",
+    extra_photos_hint: "These appear only on the item's detail page, not on the homepage grid.",
+    select_photos:     "Select one or more photos",
+    done:              "Done",
+    contact_col:       "Contact",
+    listings_col:      "Listings",
+    rights:            "All rights reserved.",
+    wa_interest:       "Hi! I'm interested in:",
+    inquiry:           "Inquiry: ",
+    photos_added:      "photo(s) added!",
+    welcome:           "Welcome, Admin!",
+    login_error:       "Login failed: ",
+    creds_error:       "Enter email and password",
+    name_required:     "Name is required",
+    item_updated:      "Item updated!",
+    item_added:        "Item added!",
+    save_error:        "Save failed: ",
+    delete_confirm:    "Delete this item? This cannot be undone.",
+    delete_error:      "Delete failed: ",
+    upload_error:      "Upload failed: ",
+    settings_saved:    "Settings saved!",
+    logo_updated:      "Logo updated!",
+    remove_logo_confirm:"Remove the logo?",
+    generic_error:     "Failed: ",
+    appearance_saved:  "Appearance saved!",
+    item_deleted:      "Item deleted",
+    item_not_found:    "Item not found.",
+    email_field:       "Email",
+    location_field:    "Location",
+  },
+};
+
+function T(key) {
+  return (STRINGS[LANG] || STRINGS["pt"])[key] || key;
+}
+
+
+/* ============================================================
    10. JS: SUPABASE CONFIG
    Replace these two values with your project's credentials.
    Find them in: Supabase Dashboard → Settings → API
    ============================================================ */
-const SUPABASE_URL      = "https://parnovhkwdhpqxceqsna.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_xth8XUueIvmvLb2ZDUT_sw_-jtT8_a6";
+const SUPABASE_URL      = "https://YOUR_PROJECT.supabase.co";   // ← replace
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY_HERE";                 // ← replace
+
 /* ============================================================
    11. JS: STORAGE MODULE
    All database reads and writes are isolated here.
@@ -630,7 +862,7 @@ const Storage = {
     if (error) throw error;
   },
 
-  /* Delete an item by id */
+  /* Excluir an item by id */
   async deleteItem(id) {
     const { error } = await this.sb
       .from("items")
@@ -672,7 +904,7 @@ const ImageUpload = {
     return data.publicUrl;
   },
 
-  /* Delete an image by its full public URL */
+  /* Excluir an image by its full public URL */
   async deleteImage(url) {
     if (!url) return;
     try {
@@ -692,8 +924,8 @@ const App = {
   state: {
     /* Loaded from Supabase */
     config: {
-      site_name:    "My Catalog",
-      hero_subtitle:"Browse our listings and get in touch directly.",
+      site_name:    "Meu Catálogo",
+      hero_subtitle:"Veja nossos itens e entre em contato.",
       logo_url:     "",
       colors:       { primary: "#22c55e", bg: "#fafaf9" },
       contact:      { email: "", whatsapp: "", address: "" },
@@ -796,11 +1028,11 @@ function buildNav(state) {
       <div class="nav-brand" onclick="Nav.goHome()">${brand}</div>
       <div class="nav-actions">
         ${isAdmin ? `
-          <button class="btn btn-ghost" onclick="Nav.goAdmin()">⚙ Admin</button>
-          <button class="btn btn-ghost" onclick="Auth.logout()">Exit</button>
-          <button class="btn-add-item" onclick="Items.openAddModal()" title="Add new item">+</button>
+          <button class="btn btn-ghost" onclick="Nav.goAdmin()">⚙ ${T("admin")}</button>
+          <button class="btn btn-ghost" onclick="Auth.logout()">${T("exit")}</button>
+          <button class="btn-add-item" onclick="Items.openAddModal()" title="${T('add_item_title')}">+</button>
         ` : `
-          <button class="btn btn-ghost" onclick="Auth.openLogin()">Admin</button>
+          <button class="btn btn-ghost" onclick="Auth.openLogin()">${T("admin")}</button>
         `}
       </div>
     </div>
@@ -810,9 +1042,11 @@ function buildNav(state) {
 function buildHero(state) {
   const { config } = state;
   /* Hero shows logo large if set, otherwise site name as heading */
+  /* Use hero_title if set, otherwise fall back to site_name */
+  const heroDisplay = config.hero_title || config.site_name;
   const logoOrName = config.logo_url
-    ? `<img src="${escAttr(config.logo_url)}" class="hero-logo" alt="${escHtml(config.site_name)}"/>`
-    : `<h1 class="hero-site-name">${escHtml(config.site_name)}</h1>`;
+    ? `<img src="${escAttr(config.logo_url)}" class="hero-logo" alt="${escHtml(heroDisplay)}"/>`
+    : `<h1 class="hero-site-name">${escHtml(heroDisplay)}</h1>`;
   return `
   <div class="hero fade-in">
     ${logoOrName}
@@ -828,14 +1062,14 @@ function buildHome(state) {
   const grid = items.length === 0
     ? `<div class="empty-state">
          <div class="empty-state-icon">📦</div>
-         <h3>No listings yet</h3>
-         <p>${isAdmin ? "Click the + button to add your first item." : "Check back soon."}</p>
+         <h3>${T("browse")}</h3>
+         <p>${isAdmin ? T("no_items_admin") : T("no_items_visitor")}</p>
        </div>`
     : `<div class="catalog-grid">${items.map(buildCard).join("")}</div>`;
   return `
   ${buildHero(state)}
   <div class="catalog-section fade-in">
-    <div class="section-heading">Browse Listings</div>
+    <div class="section-heading">${T("browse")}</div>
     ${grid}
   </div>`;
 }
@@ -846,7 +1080,7 @@ function buildCard(item) {
     : `<div class="card-emoji">${item.emoji || "📦"}</div>`;
   const price = item.price_required && item.price
     ? `<div class="card-price">${escHtml(item.price)}</div>`
-    : `<div class="card-no-price">Contact for info</div>`;
+    : `<div class="card-no-price">${T("contact_for_info")}</div>`;
   return `
   <div class="card" onclick="Nav.openItem('${escAttr(item.id)}')">
     ${photo}
@@ -862,7 +1096,7 @@ function buildCard(item) {
    ============================================================ */
 function buildDetail(state) {
   const item = state.items.find(i => i.id === state.selectedItemId);
-  if (!item) return `<div class="detail-wrap"><button class="back-link" onclick="Nav.goHome()">← Back</button><p>Item not found.</p></div>`;
+  if (!item) return `<div class="detail-wrap"><button class="back-link" onclick="Nav.goHome()">${T("back")}</button><p>${T("item_not_found")}</p></div>`;
 
   /* All photos: front first, then extras */
   const allPhotos = [item.front_image_url, ...(item.images || [])].filter(Boolean);
@@ -878,7 +1112,7 @@ function buildDetail(state) {
   ).join("");
 
   const addThumb = state.isAdmin
-    ? `<button class="thumb-add-btn" onclick="App.setState({modal:'addPhoto'})" title="Add photo">+</button>`
+    ? `<button class="thumb-add-btn" onclick="App.setState({modal:'addPhoto'})" title="Adicionar foto">+</button>`
     : "";
 
   const specsHtml = item.specs && item.specs.length > 0
@@ -899,18 +1133,18 @@ function buildDetail(state) {
 
   const adminTools = state.isAdmin
     ? `<div class="admin-toolbar">
-        <div class="admin-toolbar-label">Admin Tools</div>
+        <div class="admin-toolbar-label">${T("admin_tools")}</div>
         <div class="admin-toolbar-btns">
-          <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')">✏ Edit</button>
-          <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')">🗑 Delete</button>
-          <button class="btn btn-primary" onclick="App.setState({modal:'addPhoto'})">+ Add Photo</button>
+          <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')">${T("edit")}</button>
+          <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')">${T("delete_btn")}</button>
+          <button class="btn btn-primary" onclick="App.setState({modal:'addPhoto'})">${T("add_photo")}</button>
         </div>
        </div>`
     : "";
 
   return `
   <div class="detail-wrap fade-in">
-    <button class="back-link" onclick="Nav.goHome()">← Back to catalog</button>
+    <button class="back-link" onclick="Nav.goHome()">${T("back")}</button>
     <div class="detail-grid">
       <div>
         ${mainDisplay}
@@ -920,10 +1154,10 @@ function buildDetail(state) {
         <h1 class="detail-name">${escHtml(item.name)}</h1>
         ${item.price_required && item.price
           ? `<div class="detail-price">${escHtml(item.price)}</div>`
-          : `<div class="detail-price" style="color:var(--muted);font-size:1rem;font-style:italic">Reach out for pricing</div>`}
+          : `<div class="detail-price" style="color:var(--muted);font-size:1rem;font-style:italic">${T("reach_out")}</div>`}
         ${item.description ? `<p class="detail-desc">${escHtml(item.description)}</p>` : ""}
         ${specsHtml}
-        <button class="cta-email" onclick="App.setState({modal:'contact'})">✉ Contact About This</button>
+        <button class="cta-email" onclick="App.setState({modal:'contact'})">✉ ✉ Entrar em Contato</button>
         ${waCTA}
         ${adminTools}
       </div>
@@ -938,37 +1172,39 @@ function buildAdmin(state) {
   const { config, items } = state;
   return `
   <div class="admin-wrap fade-in">
-    <h2 class="admin-heading">Admin Panel</h2>
-    <p class="admin-subhead">Manage listings, contact info and appearance</p>
+    <h2 class="admin-heading">Painel Admin</h2>
+    <p class="admin-subhead">Gerencie itens, contato e aparência</p>
 
     <div class="panel-block">
-      <div class="panel-block-title">Quick Actions</div>
+      <div class="panel-block-title">Ações Rápidas</div>
       <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="Items.openAddModal()">+ Add Item</button>
-        <button class="btn btn-ghost"   onclick="Settings.openAppearance()">🎨 Appearance</button>
+        <button class="btn btn-primary" onclick="Items.openAddModal()">+ Adicionar Item</button>
+        <button class="btn btn-ghost"   onclick="Settings.openAppearance()">🎨 Aparência</button>
       </div>
     </div>
 
     <div class="panel-block">
-      <div class="panel-block-title">Contact & Site Text</div>
+      <div class="panel-block-title">Contato & Texto do Site</div>
       <div class="form-group"><label class="form-label">Email</label>
-        <input class="form-input" id="cfg-email"    value="${escAttr(config.contact.email    || "")}" placeholder="your@email.com"/></div>
-      <div class="form-group"><label class="form-label">WhatsApp (with country code)</label>
+        <input class="form-input" id="cfg-email"    value="${escAttr(config.contact.email    || "")}" placeholder="seu@email.com"/></div>
+      <div class="form-group"><label class="form-label">WhatsApp (com código do país)</label>
         <input class="form-input" id="cfg-wa"       value="${escAttr(config.contact.whatsapp || "")}" placeholder="+5541999999999"/></div>
-      <div class="form-group"><label class="form-label">Address / Location</label>
-        <input class="form-input" id="cfg-address"  value="${escAttr(config.contact.address  || "")}" placeholder="City, Country"/></div>
-      <div class="form-group"><label class="form-label">Hero Subtitle</label>
+      <div class="form-group"><label class="form-label">Endereço / Localização</label>
+        <input class="form-input" id="cfg-address"  value="${escAttr(config.contact.address  || "")}" placeholder="Cidade, Estado"/></div>
+      <div class="form-group"><label class="form-label">${T("hero_title_label")}</label>
+        <input class="form-input" id="cfg-herotitle" value="${escAttr(config.hero_title || config.site_name || "")}"/></div>
+      <div class="form-group"><label class="form-label">${T("subtitle_label")}</label>
         <input class="form-input" id="cfg-subtitle" value="${escAttr(config.hero_subtitle    || "")}"/></div>
-      <div class="form-group"><label class="form-label">Site Name</label>
+      <div class="form-group"><label class="form-label">Nome do Site</label>
         <input class="form-input" id="cfg-sitename" value="${escAttr(config.site_name        || "")}"/></div>
       <button class="btn btn-primary ${state.saving ? "disabled" : ""}"
         onclick="Settings.saveConfig()" ${state.saving ? "disabled" : ""}>
-        ${state.saving ? `<span class="spinner"></span>` : "Save Settings"}
+        ${state.saving ? `<span class="spinner"></span>` : "Salvar Configurações"}
       </button>
     </div>
 
     <div class="panel-block">
-      <div class="panel-block-title">All Items (${items.length})</div>
+      <div class="panel-block-title">Todos os Itens (${items.length})</div>
       ${items.length === 0 ? `<p style="color:var(--muted);font-size:.9rem">No items yet.</p>` : ""}
       ${items.map(item => `
         <div class="admin-item-row">
@@ -977,12 +1213,12 @@ function buildAdmin(state) {
             : `<div class="admin-item-thumb">${item.emoji || "📦"}</div>`}
           <div class="admin-item-info">
             <div class="admin-item-name">${escHtml(item.name)}</div>
-            <div class="admin-item-meta">${item.price_required ? escHtml(item.price || "") : "No price listed"}</div>
+            <div class="admin-item-meta">${item.price_required ? escHtml(item.price || "") : "Sem preço listado"}</div>
           </div>
           <div class="admin-item-btns">
-            <button class="btn btn-ghost" onclick="Nav.openItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">View</button>
-            <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Edit</button>
-            <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Delete</button>
+            <button class="btn btn-ghost" onclick="Nav.openItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Ver</button>
+            <button class="btn btn-ghost" onclick="Items.openEditModal('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Editar</button>
+            <button class="btn btn-red"   onclick="Items.deleteItem('${escAttr(item.id)}')" style="font-size:.82rem;padding:5px 10px">Excluir</button>
           </div>
         </div>`).join("")}
     </div>
@@ -997,7 +1233,7 @@ function buildModals(state) {
     case "login":    return buildLoginModal(state);
     case "addItem":  return buildAddItemModal(state);
     case "settings": return buildSettingsModal(state);
-    case "contact":  return buildContactModal(state);
+    case "contact":  return buildContatoModal(state);
     case "addPhoto": return buildAddPhotoModal();
     default:         return "";
   }
@@ -1007,21 +1243,21 @@ function buildLoginModal(state) {
   return `
   <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
     <div class="modal" id="the-modal">
-      <div class="modal-title">Admin Login</div>
+      <div class="modal-title">Entrar Admin</div>
       <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="form-input" id="login-email" type="email" placeholder="your@email.com"/>
+        <label class="form-label">${T("email_label")}</label>
+        <input class="form-input" id="login-email" type="email" placeholder="${T('email_placeholder')}"/>
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input class="form-input" id="login-pass" type="password" placeholder="Your password"
-          onkeydown="if(event.key==='Enter') Auth.tryLogin()"/>
+        <input class="form-input" id="login-pass" type="password" placeholder="Sua senha"
+          onkeydown="if(event.key==='Enter') Auth.tryEntrar()"/>
       </div>
-      ${state.saving ? `<p style="font-size:.85rem;color:var(--muted)">Signing in…</p>` : ""}
+      ${state.saving ? `<p style="font-size:.85rem;color:var(--muted)">${T("signing_in")}</p>` : ""}
       <div class="modal-footer">
-        <button class="btn-outline" onclick="Modals.close()">Cancel</button>
-        <button class="btn btn-primary" onclick="Auth.tryLogin()" ${state.saving?"disabled":""}>
-          ${state.saving ? `<span class="spinner"></span>` : "Login"}
+        <button class="btn-outline" onclick="Modals.close()">Cancelar</button>
+        <button class="btn btn-primary" onclick="Auth.tryEntrar()" ${state.saving?"disabled":""}>
+          ${state.saving ? `<span class="spinner"></span>` : "Entrar"}
         </button>
       </div>
     </div>
@@ -1032,7 +1268,7 @@ function buildAddItemModal(state) {
   const item = state.editingItemId
     ? state.items.find(i => i.id === state.editingItemId)
     : null;
-  const isEdit = !!item;
+  const isEditar = !!item;
   const specsHtml = (item?.specs?.length ? item.specs : [{ label:"", value:"" }])
     .map((s, i) => buildSpecRow(s.label, s.value, i)).join("");
 
@@ -1042,26 +1278,26 @@ function buildAddItemModal(state) {
   return `
   <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
     <div class="modal" id="the-modal">
-      <div class="modal-title">${isEdit ? "Edit Item" : "Add New Item"}</div>
+      <div class="modal-title">${isEditar ? "Editar Item" : "Adicionar Novo Item"}</div>
 
       <div class="form-group">
-        <label class="form-label">Name *</label>
-        <input class="form-input" id="f-name" value="${escAttr(item?.name || "")}" placeholder="e.g. Golden Retriever – Max"/>
+        <label class="form-label">Nome *</label>
+        <input class="form-input" id="f-name" value="${escAttr(item?.name || "")}" placeholder="ex: Golden Retriever – Max"/>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Emoji Icon (shown when no photo)</label>
+        <label class="form-label">${T("emoji_label")}</label>
         <input class="form-input" id="f-emoji" value="${escAttr(item?.emoji || "📦")}" maxlength="4" style="width:90px"/>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Front Photo</label>
+        <label class="form-label">${T("front_photo")}</label>
         ${previewSrc
           ? `<img src="${escAttr(previewSrc)}" class="img-preview-inline" id="front-preview"/>`
           : `<img id="front-preview" class="img-preview-inline" style="display:none"/>`}
         <label class="upload-zone" for="f-frontimg">
           <span class="upload-zone-icon">📷</span>
-          <span>${previewSrc ? "Click to replace" : "Click to upload"}</span>
+          <span>${previewSrc ? "Clique para substituir" : "Clique para enviar"}</span>
           <input type="file" id="f-frontimg" accept="image/*" style="display:none"
             onchange="Items.previewFront(event)"/>
         </label>
@@ -1072,29 +1308,29 @@ function buildAddItemModal(state) {
           <input type="checkbox" id="f-pricetoggle"
             ${item?.price_required ? "checked" : ""}
             onchange="Items.togglePriceField(this.checked)"/>
-          Show a price
+          ${T("show_price")}
         </label>
       </div>
       <div class="form-group" id="price-field" style="${item?.price_required ? "" : "display:none"}">
         <label class="form-label">Price</label>
-        <input class="form-input" id="f-price" value="${escAttr(item?.price || "")}" placeholder="e.g. $50"/>
+        <input class="form-input" id="f-price" value="${escAttr(item?.price || "")}" placeholder="ex: R$ 50"/>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Description</label>
+        <label class="form-label">${T("desc_label")}</label>
         <textarea class="form-input" id="f-desc" rows="3" style="resize:vertical">${escHtml(item?.description || "")}</textarea>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Specifications</label>
+        <label class="form-label">${T("specs_label")}</label>
         <div id="specs-container">${specsHtml}</div>
-        <button class="btn btn-ghost" onclick="Items.addSpecRow()" style="font-size:.83rem;padding:5px 12px;margin-top:.4rem">+ Add row</button>
+        <button class="btn btn-ghost" onclick="Items.addSpecRow()" style="font-size:.83rem;padding:5px 12px;margin-top:.4rem">${T("add_row")}</button>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-outline" onclick="Items.cancelModal()">Cancel</button>
+        <button class="btn-outline" onclick="Items.cancelModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="Items.saveItem()" ${state.saving?"disabled":""}>
-          ${state.saving ? `<span class="spinner"></span>` : (isEdit ? "💾 Save Changes" : "Add Item")}
+          ${state.saving ? `<span class="spinner"></span>` : (isEditar ? "💾 Salvar Alterações" : "Adicionar Item")}
         </button>
       </div>
     </div>
@@ -1104,8 +1340,8 @@ function buildAddItemModal(state) {
 function buildSpecRow(label, value, index) {
   return `
   <div class="spec-entry" id="spec-row-${index}">
-    <input class="form-input" data-spec-label placeholder="Label (e.g. Age)"   value="${escAttr(label)}"/>
-    <input class="form-input" data-spec-value placeholder="Value (e.g. 2 yrs)" value="${escAttr(value)}"/>
+    <input class="form-input" data-spec-label placeholder="${T('spec_label_ph')}"   value="${escAttr(label)}"/>
+    <input class="form-input" data-spec-value placeholder="${T('spec_val_ph')}" value="${escAttr(value)}"/>
     <button class="spec-remove" onclick="Items.removeSpecRow(${index})">×</button>
   </div>`;
 }
@@ -1115,42 +1351,42 @@ function buildSettingsModal(state) {
   return `
   <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
     <div class="modal" id="the-modal">
-      <div class="modal-title">🎨 Appearance</div>
+      <div class="modal-title">${T("appearance_title")}</div>
 
       <div class="form-group">
-        <label class="form-label">Logo (shown large in hero + small in nav)</label>
+        <label class="form-label">${T("logo_label")}</label>
         ${config.logo_url
           ? `<img src="${escAttr(config.logo_url)}" style="height:52px;border-radius:6px;margin-bottom:.5rem;object-fit:contain"/>`
           : ""}
         <label class="upload-zone" style="min-height:80px" for="f-logo">
-          <span>${config.logo_url ? "Click to replace logo" : "Upload Logo"}</span>
+          <span>${config.logo_url ? "Clique para substituir logo" : "Enviar Logo"}</span>
           <input type="file" id="f-logo" accept="image/*" style="display:none"
             onchange="Settings.uploadLogo(event)"/>
         </label>
         ${config.logo_url
-          ? `<button onclick="Settings.clearLogo()" style="font-size:.8rem;color:var(--danger);background:none;border:none;cursor:pointer;margin-top:.35rem">✕ Remove logo</button>`
+          ? `<button onclick="Settings.clearLogo()" style="font-size:.8rem;color:var(--danger);background:none;border:none;cursor:pointer;margin-top:.35rem">${T("remove_logo")}</button>`
           : ""}
       </div>
 
       <!-- Primary color — all gradients, buttons, accents derive from this -->
       <div class="color-config-row">
-        <span class="color-config-label">Primary Color</span>
+        <span class="color-config-label">${T("primary_color")}</span>
         <input type="color" class="color-config-picker" id="cp-primary"
           value="${escAttr(config.colors?.primary || "#22c55e")}"
           oninput="Settings.livePreview(this.value)"/>
-        <span style="font-size:.83rem;color:var(--muted)">Buttons, hero &amp; card tints</span>
+        <span style="font-size:.83rem;color:var(--muted)">Botões, hero e cards</span>
       </div>
 
-      <!-- Background color -->
+      <!-- Fundo color -->
       <div class="color-config-row">
-        <span class="color-config-label">Background</span>
+        <span class="color-config-label">${T("bg_color")}</span>
         <input type="color" class="color-config-picker" id="cp-bg"
           value="${escAttr(config.colors?.bg || "#fafaf9")}"/>
-        <span style="font-size:.83rem;color:var(--muted)">Page background</span>
+        <span style="font-size:.83rem;color:var(--muted)">${T("bg_hint")}</span>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-outline" onclick="Settings.cancelAppearance()">Cancel</button>
+        <button class="btn-outline" onclick="Settings.cancelAppearance()">Cancelar</button>
         <button class="btn btn-primary" onclick="Settings.saveAppearance()" ${state.saving?"disabled":""}>
           ${state.saving ? `<span class="spinner"></span>` : "Save"}
         </button>
@@ -1159,17 +1395,17 @@ function buildSettingsModal(state) {
   </div>`;
 }
 
-function buildContactModal(state) {
+function buildContatoModal(state) {
   const c    = state.config.contact;
   const item = state.items.find(i => i.id === state.selectedItemId);
-  const subj = item ? encodeURIComponent(`Inquiry: ${item.name}`) : "";
-  const waMsg= item ? encodeURIComponent(`Hi! I'm interested in: ${item.name}`) : "";
+  const subj = item ? encodeURIComponent(`${T("inquiry")}${item.name}`) : "";
+  const waMsg= item ? encodeURIComponent(`Olá! Tenho interesse em: ${item.name}`) : "";
 
   const emailRow = c.email ? `
     <div class="contact-option">
       <span class="contact-option-icon">✉</span>
       <div>
-        <div class="contact-option-label">Email</div>
+        <div class="contact-option-label">${T("email_field")}</div>
         <a class="contact-option-value" href="mailto:${escAttr(c.email)}?subject=${subj}">${escHtml(c.email)}</a>
       </div>
     </div>` : "";
@@ -1197,16 +1433,16 @@ function buildContactModal(state) {
   return `
   <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
     <div class="modal" id="the-modal">
-      <div class="modal-title">Get in Touch</div>
-      ${item ? `<p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">About: <strong>${escHtml(item.name)}</strong></p>` : ""}
+      <div class="modal-title">${T("contact_title")}</div>
+      ${item ? `<p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">${T("about_prefix")}<strong>${escHtml(item.name)}</strong></p>` : ""}
       <div style="background:var(--primary-light);border-radius:var(--radius-sm);padding:.5rem 1rem">
         ${emailRow}${waRow}${addrRow}
         ${!c.email && !c.whatsapp
-          ? `<p style="color:var(--muted);font-size:.9rem;padding:.5rem 0">No contact info configured yet.</p>`
+          ? `<p style="color:var(--muted);font-size:.9rem;padding:.5rem 0">${T("no_contact")}</p>`
           : ""}
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary" onclick="Modals.close()">Close</button>
+        <button class="btn btn-primary" onclick="Modals.close()">${T("close")}</button>
       </div>
     </div>
   </div>`;
@@ -1216,18 +1452,18 @@ function buildAddPhotoModal() {
   return `
   <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
     <div class="modal" id="the-modal">
-      <div class="modal-title">Add Extra Photos</div>
+      <div class="modal-title">${T("extra_photos")}</div>
       <p style="color:var(--muted);font-size:.9rem;margin-bottom:1rem">
-        These appear only on the item's detail page, not on the homepage grid.
+        ${T("extra_photos_hint")}
       </p>
       <label class="upload-zone" for="f-extraphotos">
         <span class="upload-zone-icon">📷</span>
-        <span>Select one or more photos</span>
+        <span>${T("select_photos")}</span>
         <input type="file" id="f-extraphotos" accept="image/*" multiple style="display:none"
           onchange="Items.addExtraPhotos(event)"/>
       </label>
       <div class="modal-footer">
-        <button class="btn btn-primary" onclick="Modals.close()">Done</button>
+        <button class="btn btn-primary" onclick="Modals.close()">${T("done")}</button>
       </div>
     </div>
   </div>`;
@@ -1247,20 +1483,20 @@ function buildFooter(state) {
         <p class="footer-brand-desc">${escHtml(config.hero_subtitle)}</p>
       </div>
       <div>
-        <div class="footer-col-title">Contact</div>
+        <div class="footer-col-title">${T("contact_col")}</div>
         ${c.email    ? `<a class="footer-link" href="mailto:${escAttr(c.email)}">✉ ${escHtml(c.email)}</a>` : ""}
         ${c.whatsapp ? `<a class="footer-link" href="https://wa.me/${c.whatsapp.replace(/\D/g,"")}" target="_blank" rel="noopener">📱 ${escHtml(c.whatsapp)}</a>` : ""}
         ${c.address  ? `<span class="footer-link" style="cursor:default">📍 ${escHtml(c.address)}</span>` : ""}
       </div>
       <div>
-        <div class="footer-col-title">Listings</div>
-        <span class="footer-link" onclick="Nav.goHome()">All Items</span>
+        <div class="footer-col-title">${T("listings_col")}</div>
+        <span class="footer-link" onclick="Nav.goHome()">${T("all_items")}</span>
         ${items.slice(0, 5).map(i =>
           `<span class="footer-link" onclick="Nav.openItem('${escAttr(i.id)}')">${escHtml(i.name)}</span>`
         ).join("")}
       </div>
     </div>
-    <div class="footer-bottom">© ${new Date().getFullYear()} ${escHtml(config.site_name)}. All rights reserved.</div>
+    <div class="footer-bottom">© ${new Date().getFullYear()} ${escHtml(config.site_name)}. ${T("rights")}</div>
   </footer>`;
 }
 
@@ -1305,18 +1541,18 @@ const Auth = {
     App.setState({ modal: "login" });
   },
 
-  async tryLogin() {
+  async tryEntrar() {
     const email = document.getElementById("login-email")?.value?.trim();
     const pass  = document.getElementById("login-pass")?.value;
-    if (!email || !pass) { App.notify("Enter email and password", "error"); return; }
+    if (!email || !pass) { App.notify(T("creds_error"), "error"); return; }
     App.setState({ saving: true });
     const { data, error } = await Storage.sb.auth.signInWithPassword({ email, password: pass });
     if (error) {
-      App.notify("Login failed: " + error.message, "error");
+      App.notify("Entrar failed: " + error.message, "error");
       App.setState({ saving: false });
     } else {
       App.setState({ isAdmin: true, session: data.session, modal: null, saving: false });
-      App.notify("Welcome, Admin!");
+      App.notify(T("welcome"));
     }
   },
 
@@ -1387,7 +1623,7 @@ const Items = {
 
   async saveItem() {
     const name = document.getElementById("f-name")?.value?.trim();
-    if (!name) { App.notify("Name is required", "error"); return; }
+    if (!name) { App.notify(T("name_required"), "error"); return; }
 
     App.setState({ saving: true });
 
@@ -1416,13 +1652,13 @@ const Items = {
         if (idx > -1) Object.assign(App.state.items[idx], {
           name, emoji, price_required, price, description, specs, front_image_url
         });
-        App.notify("Item updated!");
+        App.notify(T("item_updated"));
       } else {
         const created = await Storage.createItem({
           name, emoji, price_required, price, description, specs, front_image_url, images: []
         });
         App.state.items.push(created);
-        App.notify("Item added!");
+        App.notify(T("item_added"));
       }
 
       App.state._pendingFrontImg  = null;
@@ -1430,13 +1666,13 @@ const Items = {
       App.setState({ modal: null, editingItemId: null, saving: false });
 
     } catch (e) {
-      App.notify("Save failed: " + e.message, "error");
+      App.notify(T("save_error") + e.message, "error");
       App.setState({ saving: false });
     }
   },
 
   async deleteItem(id) {
-    if (!confirm("Delete this item? This cannot be undone.")) return;
+    if (!confirm("Excluir this item? This cannot be undone.")) return;
     try {
       const item = App.state.items.find(i => i.id === id);
       /* Clean up images from storage */
@@ -1447,11 +1683,11 @@ const Items = {
       if (App.state.selectedItemId === id) {
         App.setState({ view: "home", selectedItemId: null });
       } else {
-        App.notify("Item deleted");
+        App.notify(T("item_deleted"));
         App.render();
       }
     } catch (e) {
-      App.notify("Delete failed: " + e.message, "error");
+      App.notify("Excluir failed: " + e.message, "error");
     }
   },
 
@@ -1466,10 +1702,10 @@ const Items = {
       const images = [...(item.images || []), ...urls];
       await Storage.updateItem(item.id, { images });
       item.images = images;
-      App.notify(`${urls.length} photo(s) added!`);
+      App.notify(`${urls.length} ${T("photos_added")}`);
       App.setState({ modal: null, saving: false });
     } catch (e) {
-      App.notify("Upload failed: " + e.message, "error");
+      App.notify(T("upload_error") + e.message, "error");
       App.setState({ saving: false });
     }
   },
@@ -1507,17 +1743,28 @@ const Settings = {
         whatsapp: document.getElementById("cfg-wa")?.value       || "",
         address:  document.getElementById("cfg-address")?.value  || "",
       };
+      /* Read all fields — use current value as fallback if field missing */
+      const newSiteName    = document.getElementById("cfg-sitename")?.value.trim();
+      const newSubtitle    = document.getElementById("cfg-subtitle")?.value.trim();
+      const newHeroTitle   = document.getElementById("cfg-herotitle")?.value.trim();
       const update = {
-        hero_subtitle: document.getElementById("cfg-subtitle")?.value || App.state.config.hero_subtitle,
-        site_name:     document.getElementById("cfg-sitename")?.value || App.state.config.site_name,
+        site_name:     newSiteName    || App.state.config.site_name,
+        hero_subtitle: newSubtitle    || App.state.config.hero_subtitle,
+        hero_title:    newHeroTitle   || App.state.config.hero_title || "",
         contact,
       };
       await Storage.saveConfig(update);
-      Object.assign(App.state.config, update);
-      App.notify("Settings saved!");
+      /* Update local state so UI reflects changes immediately without reload */
+      App.state.config.site_name     = update.site_name;
+      App.state.config.hero_subtitle = update.hero_subtitle;
+      App.state.config.hero_title    = update.hero_title;
+      App.state.config.contact       = update.contact;
+      /* Update page title */
+      document.title = update.site_name;
+      App.notify(T("settings_saved"));
       App.setState({ saving: false });
     } catch (e) {
-      App.notify("Save failed: " + e.message, "error");
+      App.notify(T("save_error") + e.message, "error");
       App.setState({ saving: false });
     }
   },
@@ -1530,23 +1777,23 @@ const Settings = {
       const url = await ImageUpload.uploadImage(file);
       await Storage.saveConfig({ logo_url: url });
       App.state.config.logo_url = url;
-      App.notify("Logo updated!");
+      App.notify(T("logo_updated"));
       App.setState({ saving: false });
     } catch (e) {
-      App.notify("Upload failed: " + e.message, "error");
+      App.notify(T("upload_error") + e.message, "error");
       App.setState({ saving: false });
     }
   },
 
   async clearLogo() {
-    if (!confirm("Remove the logo?")) return;
+    if (!confirm(T("remove_logo_confirm"))) return;
     try {
       await ImageUpload.deleteImage(App.state.config.logo_url);
       await Storage.saveConfig({ logo_url: "" });
       App.state.config.logo_url = "";
       App.render();
     } catch (e) {
-      App.notify("Failed: " + e.message, "error");
+      App.notify(T("generic_error") + e.message, "error");
     }
   },
 
@@ -1561,10 +1808,10 @@ const Settings = {
     try {
       await Storage.saveConfig({ colors });
       App.state.config.colors = colors;
-      App.notify("Appearance saved!");
+      App.notify(T("appearance_saved"));
       App.setState({ modal: null, saving: false });
     } catch (e) {
-      App.notify("Save failed: " + e.message, "error");
+      App.notify(T("save_error") + e.message, "error");
       App.setState({ saving: false });
     }
   },
@@ -1585,7 +1832,7 @@ const Nav = {
   openWhatsapp(itemName) {
     const number = App.state.config.contact.whatsapp?.replace(/\D/g, "");
     if (!number) return;
-    const msg = encodeURIComponent(`Hi! I'm interested in: ${itemName}`);
+    const msg = encodeURIComponent(`${T("wa_interest")} ${itemName}`);
     window.open(`https://wa.me/${number}?text=${msg}`, "_blank", "noopener");
   },
 };
@@ -1646,12 +1893,17 @@ function escAttr(s) { return escHtml(s); }
   /* Merge loaded config with defaults */
   if (config) {
     App.state.config = {
-      site_name:    config.site_name    || "My Catalog",
-      hero_subtitle:config.hero_subtitle|| "Browse our listings and get in touch.",
+      site_name:    config.site_name    || "Meu Catálogo",
+      hero_title:   config.hero_title   || "",
+      hero_subtitle:config.hero_subtitle|| "Veja nossos itens e entre em contato.",
       logo_url:     config.logo_url     || "",
       colors:       config.colors       || { primary: "#22c55e", bg: "#fafaf9" },
       contact:      config.contact      || { email: "", whatsapp: "", address: "" },
     };
+    /* Set page title to site name */
+    document.title = App.state.config.site_name;
+    /* Set html lang attribute based on detected language */
+    document.documentElement.lang = LANG;
   }
   App.state.items = items;
 
@@ -1697,13 +1949,17 @@ function loadScript(src) {
   -- Site config (always one row with id=1)
   create table if not exists site_config (
     id            int primary key default 1,
-    site_name     text default 'My Catalog',
-    hero_subtitle text default 'Browse our listings and get in touch.',
+    site_name     text default 'Meu Catálogo',
+    hero_subtitle text default 'Veja nossos itens e entre em contato.',
     logo_url      text default '',
+    hero_title    text default '',
     colors        jsonb default '{"primary":"#22c55e","bg":"#fafaf9"}',
     contact       jsonb default '{"email":"","whatsapp":"","address":""}'
   );
   insert into site_config (id) values (1) on conflict do nothing;
+
+  -- Add hero_title column if upgrading from earlier version:
+  -- alter table site_config add column if not exists hero_title text default '';
 
   -- Row Level Security
   alter table items       enable row level security;
