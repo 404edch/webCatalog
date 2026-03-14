@@ -515,6 +515,18 @@ footer {
 }
 .fade-in { animation: fadeUp .3s ease; }
 
+/* Secret admin tap zone — invisible, bottom-right corner */
+.secret-zone {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 48px;
+  height: 48px;
+  z-index: 50;
+  cursor: default;
+  /* completely invisible — no background, no border */
+}
+
 /* Loading screen */
 #loading-screen {
   position: fixed; inset: 0;
@@ -557,6 +569,7 @@ footer {
 </div>
 
 <div id="app" style="opacity:0;transition:opacity .4s"></div>
+<div class="secret-zone" id="secret-zone" onclick="SecretAccess.tap()"></div>
 
 <script>
 "use strict";
@@ -654,12 +667,12 @@ const STRINGS = {
     no_contact:        "Nenhuma informação de contato configurada.",
     close:             "Fechar",
     extra_photos:      "Adicionar Mais Fotos",
-    extra_photos_hint: "${T("extra_photos_hint")}",
+    extra_photos_hint: "Essas fotos aparecem apenas na página do item, não na grade inicial.",
     select_photos:     "Selecione uma ou mais fotos",
     done:              "Concluído",
     contact_col:       "Contato",
     listings_col:      "Itens",
-    rights:            "${T("rights")}",
+    rights:            "Todos os direitos reservados.",
     wa_interest:       "Olá! Tenho interesse em:",
     inquiry:           "Consulta: ",
     photos_added:      "foto(s) adicionada(s)!",
@@ -798,7 +811,7 @@ function T(key) {
    Find them in: Supabase Dashboard → Settings → API
    ============================================================ */
 const SUPABASE_URL      = "https://parnovhkwdhpqxceqsna.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_xth8XUueIvmvLb2ZDUT_sw_-jtT8_a6";
+const SUPABASE_ANON_KEY = "sb_publishable_xth8XUueIvmvLb2ZDUT_sw_-jtT8_a6"; // publishable key
 
 /* ============================================================
    11. JS: STORAGE MODULE
@@ -1032,7 +1045,7 @@ function buildNav(state) {
           <button class="btn btn-ghost" onclick="Auth.logout()">${T("exit")}</button>
           <button class="btn-add-item" onclick="Items.openAddModal()" title="${T('add_item_title')}">+</button>
         ` : `
-          <button class="btn btn-ghost" onclick="Auth.openLogin()">${T("admin")}</button>
+          <!-- Admin access: type the secret shortcut or visit /#admin -->
         `}
       </div>
     </div>
@@ -1157,7 +1170,7 @@ function buildDetail(state) {
           : `<div class="detail-price" style="color:var(--muted);font-size:1rem;font-style:italic">${T("reach_out")}</div>`}
         ${item.description ? `<p class="detail-desc">${escHtml(item.description)}</p>` : ""}
         ${specsHtml}
-        <button class="cta-email" onclick="App.setState({modal:'contact'})">✉ ✉ Entrar em Contato</button>
+        <button class="cta-email" onclick="App.setState({modal:'contact'})">${T("contact_btn")}</button>
         ${waCTA}
         ${adminTools}
       </div>
@@ -1233,7 +1246,7 @@ function buildModals(state) {
     case "login":    return buildLoginModal(state);
     case "addItem":  return buildAddItemModal(state);
     case "settings": return buildSettingsModal(state);
-    case "contact":  return buildContatoModal(state);
+    case "contact":  return buildContactModal(state);
     case "addPhoto": return buildAddPhotoModal();
     default:         return "";
   }
@@ -1243,20 +1256,20 @@ function buildLoginModal(state) {
   return `
   <div class="overlay" id="overlay" onclick="Modals.closeOnBackdrop(event)">
     <div class="modal" id="the-modal">
-      <div class="modal-title">Entrar Admin</div>
+      <div class="modal-title">${T("login_title")}</div>
       <div class="form-group">
         <label class="form-label">${T("email_label")}</label>
         <input class="form-input" id="login-email" type="email" placeholder="${T('email_placeholder')}"/>
       </div>
       <div class="form-group">
-        <label class="form-label">Password</label>
+        <label class="form-label">${T("pass_label")}</label>
         <input class="form-input" id="login-pass" type="password" placeholder="Sua senha"
-          onkeydown="if(event.key==='Enter') Auth.tryEntrar()"/>
+          onkeydown="if(event.key==='Enter') Auth.tryLogin()"/>
       </div>
       ${state.saving ? `<p style="font-size:.85rem;color:var(--muted)">${T("signing_in")}</p>` : ""}
       <div class="modal-footer">
         <button class="btn-outline" onclick="Modals.close()">Cancelar</button>
-        <button class="btn btn-primary" onclick="Auth.tryEntrar()" ${state.saving?"disabled":""}>
+        <button class="btn btn-primary" onclick="Auth.tryLogin()" ${state.saving?"disabled":""}>
           ${state.saving ? `<span class="spinner"></span>` : "Entrar"}
         </button>
       </div>
@@ -1395,7 +1408,7 @@ function buildSettingsModal(state) {
   </div>`;
 }
 
-function buildContatoModal(state) {
+function buildContactModal(state) {
   const c    = state.config.contact;
   const item = state.items.find(i => i.id === state.selectedItemId);
   const subj = item ? encodeURIComponent(`${T("inquiry")}${item.name}`) : "";
@@ -1541,14 +1554,14 @@ const Auth = {
     App.setState({ modal: "login" });
   },
 
-  async tryEntrar() {
+  async tryLogin() {
     const email = document.getElementById("login-email")?.value?.trim();
     const pass  = document.getElementById("login-pass")?.value;
     if (!email || !pass) { App.notify(T("creds_error"), "error"); return; }
     App.setState({ saving: true });
     const { data, error } = await Storage.sb.auth.signInWithPassword({ email, password: pass });
     if (error) {
-      App.notify("Entrar failed: " + error.message, "error");
+      App.notify(T("login_error") + error.message, "error");
       App.setState({ saving: false });
     } else {
       App.setState({ isAdmin: true, session: data.session, modal: null, saving: false });
@@ -1672,7 +1685,7 @@ const Items = {
   },
 
   async deleteItem(id) {
-    if (!confirm("Excluir this item? This cannot be undone.")) return;
+    if (!confirm(T("delete_confirm"))) return;
     try {
       const item = App.state.items.find(i => i.id === id);
       /* Clean up images from storage */
@@ -1687,7 +1700,7 @@ const Items = {
         App.render();
       }
     } catch (e) {
-      App.notify("Excluir failed: " + e.message, "error");
+      App.notify(T("delete_error") + e.message, "error");
     }
   },
 
@@ -1864,14 +1877,90 @@ function escHtml(s) {
 }
 function escAttr(s) { return escHtml(s); }
 
+
+/* ============================================================
+   SECRET ADMIN ACCESS MODULE
+   Admin login is hidden from visitors. Three ways to access:
+
+   1. KEYBOARD SHORTCUT — type  a d m i n  (5 letters, no spaces)
+      while on any page. Works on desktop.
+
+   2. URL HASH — navigate to  yoursite.com/#admin
+      Works on any device (mobile friendly).
+
+   3. TAP ZONE — tap the bottom-right corner of the screen
+      5 times quickly. Works on mobile/touch devices.
+
+   To change the keyword, edit SECRET_WORD below.
+   ============================================================ */
+const SecretAccess = {
+  SECRET_WORD: "admin",   // ← change this to whatever you want
+  SECRET_HASH: "#admin",  // ← change the URL hash trigger too
+  TAP_NEEDED:  5,         // taps required on the invisible zone
+  TAP_WINDOW:  3000,      // ms window to complete the taps
+
+  _typed:   "",           // accumulates keystrokes
+  _taps:    0,            // tap counter
+  _tapTimer: null,        // resets tap counter after TAP_WINDOW
+
+  init() {
+    /* Keyboard shortcut — listen for the secret word */
+    document.addEventListener("keydown", (e) => {
+      /* Ignore if user is typing in an input/textarea */
+      if (["INPUT","TEXTAREA","SELECT"].includes(e.target.tagName)) return;
+      this._typed += e.key.toLowerCase();
+      /* Keep only the last N characters (length of secret word) */
+      if (this._typed.length > this.SECRET_WORD.length) {
+        this._typed = this._typed.slice(-this.SECRET_WORD.length);
+      }
+      if (this._typed === this.SECRET_WORD) {
+        this._typed = "";
+        this.trigger();
+      }
+    });
+
+    /* URL hash trigger — check on load and on hash change */
+    const checkHash = () => {
+      if (window.location.hash === this.SECRET_HASH) {
+        /* Clean the hash from the URL so it doesn't stay visible */
+        history.replaceState(null, "", window.location.pathname);
+        this.trigger();
+      }
+    };
+    window.addEventListener("hashchange", checkHash);
+    checkHash(); /* also check on initial load */
+  },
+
+  /* Invisible tap zone counter (mobile) */
+  tap() {
+    this._taps++;
+    clearTimeout(this._tapTimer);
+    if (this._taps >= this.TAP_NEEDED) {
+      this._taps = 0;
+      this.trigger();
+      return;
+    }
+    /* Reset if not completed within the time window */
+    this._tapTimer = setTimeout(() => { this._taps = 0; }, this.TAP_WINDOW);
+  },
+
+  trigger() {
+    if (App.state.isAdmin) return; /* already logged in */
+    Auth.openLogin();
+  },
+};
+
 /* ============================================================
    27. JS: INIT
    Loads Supabase SDK, restores session, fetches all data,
    then reveals the app.
    ============================================================ */
 (async function init() {
+  /* Initialize secret admin access triggers */
+  SecretAccess.init();
+
   /* Load Supabase JS from CDN */
-  await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js");
+  await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.min.js");
 
   /* Create the Supabase client */
   const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
